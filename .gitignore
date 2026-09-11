@@ -1,0 +1,25 @@
+# Build outputs
+build/
+app/build/
+*.apk
+*.aab
+*.ap_
+
+# Gradle
+.gradle/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Kotlin
+.kotlin/
+
+# Local config
+.opencode/
+AGENTS.md
+
+# OS
+.DS_Store
+Thumbs.db
