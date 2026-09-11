@@ -71,6 +71,16 @@ class PreferencesManager(context: Context) {
         _darkTheme.value = enabled
     }
 
+    private val _onboardingComplete = MutableStateFlow(getOnboardingComplete())
+    val onboardingComplete: StateFlow<Boolean> = _onboardingComplete.asStateFlow()
+
+    fun getOnboardingComplete(): Boolean = prefs.getBoolean(KEY_ONBOARDING_COMPLETE, false)
+
+    fun setOnboardingComplete(complete: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETE, complete).apply()
+        _onboardingComplete.value = complete
+    }
+
     companion object {
         private const val KEY_DELETE_DELAY_MINUTES = "delete_delay_minutes"
         private const val KEY_DEFAULT_ACTION = "default_action"
@@ -78,5 +88,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_NOTIFY_BEFORE_DELETE = "notify_before_delete"
         private const val KEY_DYNAMIC_COLOR = "dynamic_color"
         private const val KEY_DARK_THEME = "dark_theme"
+        private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     }
 }

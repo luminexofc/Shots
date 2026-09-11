@@ -10,9 +10,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.screenshotguard.R
 import com.screenshotguard.data.ScreenshotEntity
 import com.screenshotguard.data.ScreenshotStatus
 import java.text.SimpleDateFormat
@@ -44,8 +43,9 @@ fun HistoryScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
+            icon = { Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Delete all?") },
-            text = { Text("This will permanently delete all screenshots from your device.") },
+            text = { Text("This will permanently delete all screenshots from your device. This action cannot be undone.") },
             confirmButton = {
                 TextButton(onClick = { showDeleteConfirm = false; onDeleteAll() }) {
                     Text("Delete All", color = MaterialTheme.colorScheme.error)
@@ -76,8 +76,31 @@ fun HistoryScreen(
         }
     ) { padding ->
         if (screenshots.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No screenshots", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CameraAlt,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        "No screenshots",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "Screenshots you take will appear here",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         } else {
             LazyColumn(

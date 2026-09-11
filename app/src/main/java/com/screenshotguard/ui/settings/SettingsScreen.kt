@@ -1,24 +1,27 @@
 package com.screenshotguard.ui.settings
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.screenshotguard.R
 import com.screenshotguard.data.PreferencesManager
 import com.screenshotguard.ui.overlay.formatDelay
 
@@ -26,8 +29,10 @@ import com.screenshotguard.ui.overlay.formatDelay
 @Composable
 fun SettingsScreen(
     preferencesManager: PreferencesManager,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onPermissions: () -> Unit
 ) {
+    val context = LocalContext.current
     val deleteDelayMinutes by preferencesManager.deleteDelayMinutes.collectAsState()
     val defaultAction by preferencesManager.defaultAction.collectAsState()
     val autoDismissTimeout by preferencesManager.autoDismissTimeout.collectAsState()
@@ -178,11 +183,49 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            Text("Notifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
             SwitchRow("Notify before delete", notifyBeforeDelete) { preferencesManager.setNotifyBeforeDelete(it) }
+
+            HorizontalDivider()
+
+            Text("App", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onPermissions() }
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Security, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Permissions", style = MaterialTheme.typography.bodyLarge)
+                }
+                Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/EchoBolt-07/Shots")))
+                    }
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("GitHub", style = MaterialTheme.typography.bodyLarge)
+                }
+                Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                stringResource(R.string.version),
+                "Version 1.0",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),

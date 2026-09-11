@@ -4,6 +4,12 @@
         <item name="colorPrimary">@color/seed</item>
     </style>
 
+    <style name="Theme.ScreenshotGuard.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/seed</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.ScreenshotGuard</item>
+    </style>
+
     <style name="Theme.Transparent" parent="Theme.Material3.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>

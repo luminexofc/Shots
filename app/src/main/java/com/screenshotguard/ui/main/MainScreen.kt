@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -17,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -41,11 +41,12 @@ fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Shots") },
+                title = { Text("Shots", style = MaterialTheme.typography.headlineMedium) },
                 actions = {
                     IconButton(onClick = onHistory) { Icon(Icons.Filled.History, "History") }
                     IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, "Settings") }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
@@ -65,7 +66,7 @@ fun MainScreen(
                     ) {
                         Text(
                             "$totalCount",
-                            style = MaterialTheme.typography.displayMedium,
+                            style = MaterialTheme.typography.displaySmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -80,18 +81,27 @@ fun MainScreen(
 
             if (active.isEmpty()) {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text("No screenshots yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Text("Take a screenshot to get started", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.CameraAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            "No screenshots yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Take a screenshot to get started",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             } else {

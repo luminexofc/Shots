@@ -32,4 +32,6 @@
     <string name="version">Version 1.0</string>
     <string name="auto_dismiss_timeout">Overlay Auto-Dismiss</string>
     <string name="protected_apps">Protected Apps</string>
+    <string name="permissions">Permissions</string>
+    <string name="github">GitHub</string>
 </resources>

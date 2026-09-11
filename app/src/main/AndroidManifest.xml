@@ -26,14 +26,24 @@
         tools:targetApi="35">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.splash.SplashActivity"
             android:exported="true"
-            android:theme="@style/Theme.ScreenshotGuard">
+            android:theme="@style/Theme.ScreenshotGuard.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".OnboardingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScreenshotGuard" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScreenshotGuard" />
 
         <activity
             android:name=".ScreenshotOverlayActivity"
@@ -45,6 +55,11 @@
 
         <activity
             android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ScreenshotGuard" />
+
+        <activity
+            android:name=".PermissionsActivity"
             android:exported="false"
             android:theme="@style/Theme.ScreenshotGuard" />
 
