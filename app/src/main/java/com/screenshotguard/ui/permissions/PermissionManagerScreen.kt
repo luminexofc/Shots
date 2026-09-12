@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,12 +22,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.screenshotguard.ui.components.ShotsCard
+import com.screenshotguard.ui.theme.LocalShotsColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionManagerContent(onBack: () -> Unit) {
+    val colors = LocalShotsColors.current
     val context = LocalContext.current
 
     var storageGranted by remember {
@@ -57,30 +62,39 @@ fun PermissionManagerContent(onBack: () -> Unit) {
 
     val grantedCount = listOf(storageGranted, overlayGranted, notifGranted).count { it }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Permissions") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.background)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.iconPrimary)
+            }
+            Text(
+                "Permissions",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary
             )
         }
-    ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
                 "Required",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary
             )
 
             PermissionItem(
@@ -110,12 +124,11 @@ fun PermissionManagerContent(onBack: () -> Unit) {
                 }
             )
 
-            HorizontalDivider()
-
             Text(
                 "Optional",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.textPrimary
             )
 
             PermissionItem(
@@ -133,18 +146,18 @@ fun PermissionManagerContent(onBack: () -> Unit) {
 
             Text(
                 "$grantedCount of 3 permissions granted",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+                color = colors.textTertiary,
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
 
             Text(
                 "All permissions are needed for full functionality.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                color = colors.textTertiary,
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -157,31 +170,32 @@ private fun PermissionItem(
     granted: Boolean,
     onGrant: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val colors = LocalShotsColors.current
+    ShotsCard(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = colors.primary,
                 modifier = Modifier.size(24.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(name, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = colors.textPrimary)
                 Text(
                     if (granted) "Granted" else "Not granted",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    fontSize = 13.sp,
+                    color = if (granted) colors.success else colors.destructive
                 )
             }
             if (granted) {
                 Icon(
                     imageVector = Icons.Filled.CheckCircle,
                     contentDescription = "Granted",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = colors.success
                 )
             } else {
                 FilledTonalButton(onClick = onGrant) {

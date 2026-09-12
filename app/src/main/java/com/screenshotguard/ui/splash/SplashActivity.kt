@@ -8,7 +8,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.screenshotguard.MainActivity
 import com.screenshotguard.OnboardingActivity
 import com.screenshotguard.ScreenshotGuardApp
-import com.screenshotguard.ui.theme.ScreenshotGuardTheme
+import com.screenshotguard.ui.theme.ShotsTheme
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -22,7 +22,7 @@ class SplashActivity : ComponentActivity() {
         val app = application as ScreenshotGuardApp
 
         setContent {
-            ScreenshotGuardTheme {
+            ShotsTheme {
                 SplashContent()
             }
         }

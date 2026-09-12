@@ -6,7 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.screenshotguard.ui.permissions.PermissionManagerContent
-import com.screenshotguard.ui.theme.ScreenshotGuardTheme
+import com.screenshotguard.ui.theme.ShotsTheme
 
 class PermissionsActivity : ComponentActivity() {
 
@@ -16,10 +16,9 @@ class PermissionsActivity : ComponentActivity() {
         val app = application as ScreenshotGuardApp
 
         setContent {
-            val dynamicColor by app.preferencesManager.dynamicColor.collectAsState()
             val darkTheme by app.preferencesManager.darkTheme.collectAsState()
 
-            ScreenshotGuardTheme(dynamicColor = dynamicColor, darkTheme = darkTheme) {
+            ShotsTheme(darkTheme = darkTheme) {
                 PermissionManagerContent(onBack = { finish() })
             }
         }

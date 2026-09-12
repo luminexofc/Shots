@@ -13,7 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.screenshotguard.data.ScreenshotEntity
 import com.screenshotguard.data.ScreenshotStatus
 import com.screenshotguard.ui.overlay.OverlayScreen
-import com.screenshotguard.ui.theme.ScreenshotGuardTheme
+import com.screenshotguard.ui.theme.ShotsTheme
 import com.screenshotguard.worker.AutoDeleteWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -38,11 +38,9 @@ class ScreenshotOverlayActivity : ComponentActivity() {
             val deleteDelayMinutes by prefs.deleteDelayMinutes.collectAsState()
             val defaultAction by prefs.defaultAction.collectAsState()
             val autoDismissTimeout by prefs.autoDismissTimeout.collectAsState()
+            val darkTheme by prefs.darkTheme.collectAsState()
 
-            ScreenshotGuardTheme(
-                dynamicColor = prefs.getDynamicColor(),
-                darkTheme = prefs.getDarkTheme()
-            ) {
+            ShotsTheme(darkTheme = darkTheme) {
                 OverlayScreen(
                     screenshotUri = uri,
                     fileName = fileName,

@@ -8,7 +8,7 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.lifecycleScope
 import com.screenshotguard.data.ScreenshotStatus
 import com.screenshotguard.ui.history.HistoryScreen
-import com.screenshotguard.ui.theme.ScreenshotGuardTheme
+import com.screenshotguard.ui.theme.ShotsTheme
 import com.screenshotguard.worker.AutoDeleteWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,10 +23,9 @@ class HistoryActivity : ComponentActivity() {
         setContent {
             val screenshots by app.database.screenshotDao().getAllScreenshots()
                 .collectAsState(initial = emptyList())
-            val dynamicColor by app.preferencesManager.dynamicColor.collectAsState()
             val darkTheme by app.preferencesManager.darkTheme.collectAsState()
 
-            ScreenshotGuardTheme(dynamicColor = dynamicColor, darkTheme = darkTheme) {
+            ShotsTheme(darkTheme = darkTheme) {
                 HistoryScreen(
                     screenshots = screenshots,
                     onBack = { finish() },

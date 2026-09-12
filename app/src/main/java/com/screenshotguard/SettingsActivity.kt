@@ -7,7 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.screenshotguard.ui.settings.SettingsScreen
-import com.screenshotguard.ui.theme.ScreenshotGuardTheme
+import com.screenshotguard.ui.theme.ShotsTheme
 
 class SettingsActivity : ComponentActivity() {
 
@@ -17,13 +17,9 @@ class SettingsActivity : ComponentActivity() {
         val app = application as ScreenshotGuardApp
 
         setContent {
-            val dynamicColor by app.preferencesManager.dynamicColor.collectAsState()
             val darkTheme by app.preferencesManager.darkTheme.collectAsState()
 
-            ScreenshotGuardTheme(
-                dynamicColor = dynamicColor,
-                darkTheme = darkTheme
-            ) {
+            ShotsTheme(darkTheme = darkTheme) {
                 SettingsScreen(
                     preferencesManager = app.preferencesManager,
                     onBack = { finish() },

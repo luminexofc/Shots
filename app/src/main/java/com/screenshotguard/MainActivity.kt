@@ -17,7 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import com.screenshotguard.data.ScreenshotStatus
 import com.screenshotguard.service.ScreenshotDetectionService
 import com.screenshotguard.ui.main.MainScreen
-import com.screenshotguard.ui.theme.ScreenshotGuardTheme
+import com.screenshotguard.ui.theme.ShotsTheme
 import com.screenshotguard.worker.AutoDeleteWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,7 +36,6 @@ class MainActivity : ComponentActivity() {
                 .collectAsState(initial = emptyList())
             val totalCount by app.database.screenshotDao().getTotalCount()
                 .collectAsState(initial = 0)
-            val dynamicColor by app.preferencesManager.dynamicColor.collectAsState()
             val darkTheme by app.preferencesManager.darkTheme.collectAsState()
 
             val permLauncher = rememberLauncherForActivityResult(
@@ -56,7 +55,7 @@ class MainActivity : ComponentActivity() {
                 else checkOverlayPermission()
             }
 
-            ScreenshotGuardTheme(dynamicColor = dynamicColor, darkTheme = darkTheme) {
+            ShotsTheme(darkTheme = darkTheme) {
                 MainScreen(
                     screenshots = screenshots,
                     totalCount = totalCount,

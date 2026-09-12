@@ -5,7 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.screenshotguard.ui.onboarding.OnboardingContent
-import com.screenshotguard.ui.theme.ScreenshotGuardTheme
+import com.screenshotguard.ui.theme.ShotsTheme
 
 class OnboardingActivity : ComponentActivity() {
 
@@ -15,7 +15,7 @@ class OnboardingActivity : ComponentActivity() {
         val app = application as ScreenshotGuardApp
 
         setContent {
-            ScreenshotGuardTheme {
+            ShotsTheme {
                 OnboardingContent(
                     onComplete = {
                         app.preferencesManager.setOnboardingComplete(true)
