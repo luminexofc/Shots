@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,7 +51,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.shots.ui.theme.ShotsTheme
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -72,7 +75,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         ActivityResultContracts.RequestPermission()
     ) { granted -> notificationGranted = granted }
 
-    LaunchedEffect(Unit) {
+    fun checkPermissions() {
         storageGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
                     android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -87,114 +90,126 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         } else true
     }
 
-    ShotsTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-                when (page) {
-                    0 -> WelcomePage()
-                    1 -> PermissionsPage(
-                        storageGranted = storageGranted,
-                        overlayGranted = overlayGranted,
-                        notificationGranted = notificationGranted,
-                        onStorageClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                            } else {
-                                storageLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                            }
-                        },
-                        onOverlayClick = {
-                            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                                data = android.net.Uri.parse("package:${context.packageName}")
-                            }
-                            context.startActivity(intent)
-                        },
-                        onNotificationClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                checkPermissions()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        checkPermissions()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> WelcomePage()
+                1 -> PermissionsPage(
+                    storageGranted = storageGranted,
+                    overlayGranted = overlayGranted,
+                    notificationGranted = notificationGranted,
+                    onStorageClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                        } else {
+                            storageLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
                         }
+                    },
+                    onOverlayClick = {
+                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                            data = android.net.Uri.parse("package:${context.packageName}")
+                        }
+                        context.startActivity(intent)
+                    },
+                    onNotificationClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                )
+                2 -> HowItWorksPage()
+                3 -> ReadyPage()
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .padding(24.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(4) { index ->
+                    val isSelected = pagerState.currentPage == index
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .size(if (isSelected) 10.dp else 8.dp)
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outline,
+                                CircleShape
+                            )
                     )
-                    2 -> HowItWorksPage()
-                    3 -> ReadyPage()
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(24.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    repeat(4) { index ->
-                        val isSelected = pagerState.currentPage == index
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(if (isSelected) 10.dp else 8.dp)
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.outline,
-                                    CircleShape
-                                )
-                        )
+                if (pagerState.currentPage < 3) {
+                    TextButton(onClick = {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(3)
+                        }
+                    }) {
+                        Text("Skip", color = MaterialTheme.colorScheme.secondary)
                     }
+                } else {
+                    Spacer(modifier = Modifier.width(64.dp))
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (pagerState.currentPage < 3) {
-                        TextButton(onClick = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(3)
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            if (pagerState.currentPage < 3) {
+                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                            } else {
+                                onComplete()
                             }
-                        }) {
-                            Text(
-                                "Skip",
-                                color = MaterialTheme.colorScheme.secondary
-                            )
                         }
-                    } else {
-                        Spacer(modifier = Modifier.width(64.dp))
-                    }
-
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                if (pagerState.currentPage < 3) {
-                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                } else {
-                                    onComplete()
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Text(
-                            if (pagerState.currentPage == 3) "Get Started" else "Next",
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-                    }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text(
+                        if (pagerState.currentPage == 3) "Get Started" else "Next",
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
                 }
             }
         }
@@ -204,136 +219,62 @@ fun OnboardingScreen(onComplete: () -> Unit) {
 @Composable
 private fun WelcomePage() {
     var scale by remember { mutableStateOf(0.5f) }
-    val animatedScale by animateFloatAsState(
-        targetValue = scale,
-        animationSpec = tween(durationMillis = 1000),
-        label = "scale"
-    )
-
+    val animatedScale by animateFloatAsState(targetValue = scale, animationSpec = tween(durationMillis = 1000), label = "scale")
     LaunchedEffect(Unit) { scale = 1f }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = Icons.Default.CameraAlt,
             contentDescription = null,
-            modifier = Modifier
-                .size(120.dp)
-                .scale(animatedScale),
+            modifier = Modifier.size(120.dp).scale(animatedScale),
             tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = "Shots",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Text("Shots", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Your screenshots, your rules.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.secondary,
-            textAlign = TextAlign.Center
-        )
+        Text("Your screenshots, your rules.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
 private fun PermissionsPage(
-    storageGranted: Boolean,
-    overlayGranted: Boolean,
-    notificationGranted: Boolean,
-    onStorageClick: () -> Unit,
-    onOverlayClick: () -> Unit,
-    onNotificationClick: () -> Unit
+    storageGranted: Boolean, overlayGranted: Boolean, notificationGranted: Boolean,
+    onStorageClick: () -> Unit, onOverlayClick: () -> Unit, onNotificationClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "Permissions",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Text("Permissions", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "We need a few permissions to protect your screenshots.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
-            textAlign = TextAlign.Center
-        )
+        Text("We need a few permissions to protect your screenshots.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(32.dp))
-
-        PermissionItem(
-            icon = Icons.Default.PhotoLibrary,
-            title = "Storage Access",
-            granted = storageGranted,
-            onClick = onStorageClick
-        )
+        PermissionItem(icon = Icons.Default.PhotoLibrary, title = "Storage Access", granted = storageGranted, onClick = onStorageClick)
         Spacer(modifier = Modifier.height(16.dp))
-        PermissionItem(
-            icon = Icons.Default.Visibility,
-            title = "Display Over Apps",
-            granted = overlayGranted,
-            onClick = onOverlayClick
-        )
+        PermissionItem(icon = Icons.Default.Visibility, title = "Display Over Apps", granted = overlayGranted, onClick = onOverlayClick)
         Spacer(modifier = Modifier.height(16.dp))
-        PermissionItem(
-            icon = Icons.Default.Notifications,
-            title = "Notifications",
-            granted = notificationGranted,
-            onClick = onNotificationClick
-        )
+        PermissionItem(icon = Icons.Default.Notifications, title = "Notifications", granted = notificationGranted, onClick = onNotificationClick)
     }
 }
 
 @Composable
-private fun PermissionItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    granted: Boolean,
-    onClick: () -> Unit
-) {
+private fun PermissionItem(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, granted: Boolean, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp)).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        )
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
+        Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
         if (granted) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Granted",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
+            Icon(Icons.Default.Check, contentDescription = "Granted", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         } else {
-            Button(onClick = onClick) {
-                Text("Grant")
-            }
+            Button(onClick = onClick) { Text("Grant") }
         }
     }
 }
@@ -341,73 +282,33 @@ private fun PermissionItem(
 @Composable
 private fun HowItWorksPage() {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "How It Works",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Text("How It Works", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(32.dp))
-
-        StepItem(
-            step = "1",
-            title = "Take a Screenshot",
-            description = "Just take a screenshot like normal"
-        )
+        StepItem("1", "Take a Screenshot", "Just take a screenshot like normal")
         Spacer(modifier = Modifier.height(24.dp))
-        StepItem(
-            step = "2",
-            title = "Popup Appears",
-            description = "A popup will appear instantly"
-        )
+        StepItem("2", "Popup Appears", "A popup will appear instantly")
         Spacer(modifier = Modifier.height(24.dp))
-        StepItem(
-            step = "3",
-            title = "You Decide",
-            description = "Keep, delete, or set a timer"
-        )
+        StepItem("3", "You Decide", "Keep, delete, or set a timer")
     }
 }
 
 @Composable
-private fun StepItem(
-    step: String,
-    title: String,
-    description: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+private fun StepItem(step: String, title: String, description: String) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(MaterialTheme.colorScheme.primary, CircleShape),
+            modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = step,
-                color = MaterialTheme.colorScheme.onPrimary,
-                style = MaterialTheme.typography.labelLarge
-            )
+            Text(step, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge)
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
+            Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
+            Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
         }
     }
 }
@@ -415,47 +316,23 @@ private fun StepItem(
 @Composable
 private fun ReadyPage() {
     var scale by remember { mutableStateOf(0.5f) }
-    val animatedScale by animateFloatAsState(
-        targetValue = scale,
-        animationSpec = tween(durationMillis = 1000),
-        label = "scale"
-    )
-
+    val animatedScale by animateFloatAsState(targetValue = scale, animationSpec = tween(durationMillis = 1000), label = "scale")
     LaunchedEffect(Unit) { scale = 1f }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
-            modifier = Modifier
-                .size(120.dp)
-                .scale(animatedScale)
-                .background(MaterialTheme.colorScheme.primary, CircleShape),
+            modifier = Modifier.size(120.dp).scale(animatedScale).background(MaterialTheme.colorScheme.primary, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
-                modifier = Modifier.size(60.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
-            )
+            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(60.dp), tint = MaterialTheme.colorScheme.onPrimary)
         }
         Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = "You're All Set!",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Text("You're All Set!", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Shots is ready to protect your screenshots.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.secondary,
-            textAlign = TextAlign.Center
-        )
+        Text("Shots is ready to protect your screenshots.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Center)
     }
 }

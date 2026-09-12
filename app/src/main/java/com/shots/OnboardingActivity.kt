@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -29,11 +31,13 @@ class OnboardingActivity : ComponentActivity() {
         }
 
         setContent {
-            ShotsTheme {
+            val darkMode by prefs.darkMode.collectAsState(initial = 0)
+            ShotsTheme(darkMode = darkMode) {
                 OnboardingScreen(
                     onComplete = {
                         lifecycleScope.launch {
                             prefs.setOnboardingDone()
+                            ShotsApp.startDetectionService(this@OnboardingActivity)
                             navigateToMain()
                         }
                     }

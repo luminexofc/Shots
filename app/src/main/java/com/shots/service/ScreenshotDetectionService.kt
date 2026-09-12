@@ -1,16 +1,18 @@
 package com.shots.service
 
 import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.database.ContentObserver
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.MediaStore
-import com.shots.R
 import com.shots.ScreenshotOverlayActivity
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -25,7 +27,8 @@ class ScreenshotDetectionService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(1, createNotification())
+        createNotificationChannel()
+        startForeground(NOTIFICATION_ID, createNotification())
         registerScreenshotObserver()
     }
 
@@ -40,6 +43,18 @@ class ScreenshotDetectionService : Service() {
         }
     }
 
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Screenshot Detection",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Monitoring for screenshots"
+        }
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
+    }
+
     private fun createNotification(): Notification {
         val intent = Intent(this, ScreenshotOverlayActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -47,13 +62,24 @@ class ScreenshotDetectionService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return Notification.Builder(this, com.shots.ShotsApp.CHANNEL_ID)
-            .setContentTitle("Shots")
-            .setContentText("Monitoring for screenshots")
-            .setSmallIcon(android.R.drawable.ic_menu_camera)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .build()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("Shots")
+                .setContentText("Monitoring for screenshots")
+                .setSmallIcon(android.R.drawable.ic_menu_camera)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .build()
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+                .setContentTitle("Shots")
+                .setContentText("Monitoring for screenshots")
+                .setSmallIcon(android.R.drawable.ic_menu_camera)
+                .setContentIntent(pendingIntent)
+                .setOngoing(true)
+                .build()
+        }
     }
 
     private fun isScreenshotPath(path: String?): Boolean {
@@ -63,7 +89,8 @@ class ScreenshotDetectionService : Service() {
                 lowerPath.contains("screen_shot") ||
                 lowerPath.contains("screen-shot") ||
                 lowerPath.contains("dcim/screenshots") ||
-                lowerPath.contains("pictures/screenshots")
+                lowerPath.contains("pictures/screenshots") ||
+                lowerPath.contains("/screenshots/")
     }
 
     private fun registerScreenshotObserver() {
@@ -72,7 +99,7 @@ class ScreenshotDetectionService : Service() {
             override fun onChange(selfChange: Boolean, uri: Uri?) {
                 super.onChange(selfChange, uri)
                 val currentTime = System.currentTimeMillis()
-                if (currentTime - lastScreenshotTime < 2000) return
+                if (currentTime - lastScreenshotTime < 3000) return
 
                 uri ?: return
 
@@ -89,16 +116,15 @@ class ScreenshotDetectionService : Service() {
                             val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
 
                             if (pathIndex >= 0) {
-                                val path = cursor.getString(pathIndex)
+                                val path = cursor.getString(pathIndex) ?: return
                                 val dateAdded = if (dateIndex >= 0) cursor.getLong(dateIndex) else 0L
 
-                                if (isScreenshotPath(path) || (dateAdded * 1000L > currentTime - 3000)) {
+                                val isScreenshot = isScreenshotPath(path)
+                                val isRecent = dateAdded * 1000L > currentTime - 5000
+
+                                if (isScreenshot || isRecent) {
                                     lastScreenshotTime = currentTime
-                                    val overlayIntent = Intent(this@ScreenshotDetectionService, ScreenshotOverlayActivity::class.java).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                        putExtra("screenshot_path", path)
-                                    }
-                                    startActivity(overlayIntent)
+                                    launchOverlay(path)
                                 }
                             }
                         }
@@ -109,5 +135,22 @@ class ScreenshotDetectionService : Service() {
             }
         }
         contentResolver.registerContentObserver(uri, true, contentObserver!!)
+    }
+
+    private fun launchOverlay(screenshotPath: String) {
+        val overlayIntent = Intent(this, ScreenshotOverlayActivity::class.java).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+            )
+            putExtra("screenshot_path", screenshotPath)
+        }
+        startActivity(overlayIntent)
+    }
+
+    companion object {
+        const val CHANNEL_ID = "shots_detection_channel"
+        const val NOTIFICATION_ID = 1001
     }
 }

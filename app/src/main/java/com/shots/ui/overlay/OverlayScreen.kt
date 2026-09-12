@@ -1,8 +1,5 @@
 package com.shots.ui.overlay
 
-import android.app.Activity
-import android.os.Handler
-import android.os.Looper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,7 +34,6 @@ import com.shots.data.PreferencesManager
 import com.shots.data.Screenshot
 import com.shots.data.ScreenshotDatabase
 import com.shots.ui.components.ShotsCard
-import com.shots.ui.theme.ShotsTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,20 +53,17 @@ fun OverlayScreen(
     var showTimerDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    val handler = remember { Handler(Looper.getMainLooper()) }
-
-    ShotsTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background.copy(alpha = 0.6f))
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { onDismiss() },
-            contentAlignment = Alignment.Center
-        ) {
-            ShotsCard(
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.6f))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        ShotsCard(
                 modifier = Modifier
                     .padding(32.dp)
                     .clickable(
@@ -211,7 +204,6 @@ fun OverlayScreen(
             )
         }
     }
-}
 
 @Composable
 private fun TimerPickerDialog(

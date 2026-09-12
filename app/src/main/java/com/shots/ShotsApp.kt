@@ -1,8 +1,7 @@
 package com.shots
 
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
+import android.content.Intent
 import android.os.Build
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -13,20 +12,7 @@ import java.util.concurrent.TimeUnit
 class ShotsApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
         scheduleAutoDelete()
-    }
-
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Screenshot Deletion",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Notifications for screenshot deletion warnings"
-        }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
     }
 
     private fun scheduleAutoDelete() {
@@ -42,6 +28,13 @@ class ShotsApp : Application() {
     }
 
     companion object {
-        const val CHANNEL_ID = "shots_deletion_channel"
+        fun startDetectionService(application: android.content.Context) {
+            val serviceIntent = Intent(application, com.shots.service.ScreenshotDetectionService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                application.startForegroundService(serviceIntent)
+            } else {
+                application.startService(serviceIntent)
+            }
+        }
     }
 }

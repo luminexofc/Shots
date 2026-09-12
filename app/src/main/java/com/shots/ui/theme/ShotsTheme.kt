@@ -79,10 +79,16 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun ShotsTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkMode: Int = 0,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val systemDark = isSystemInDarkTheme()
+    val isDark = when (darkMode) {
+        1 -> true
+        2 -> false
+        else -> systemDark
+    }
+    val colorScheme = if (isDark) DarkColorScheme else LightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -90,7 +96,7 @@ fun ShotsTheme(
             val window = (view.context as? Activity)?.window ?: return@SideEffect
             @Suppress("DEPRECATION")
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
         }
     }
 
