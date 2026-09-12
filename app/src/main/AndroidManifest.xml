@@ -1,77 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.DETECT_SCREEN_CAPTURE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
-        android:name=".ScreenshotGuardApp"
+        android:name=".ShotsApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="Shots"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ScreenshotGuard"
-        tools:targetApi="35">
-
-        <activity
-            android:name=".ui.splash.SplashActivity"
-            android:exported="true"
-            android:theme="@style/Theme.ScreenshotGuard.Splash">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+        android:theme="@style/Theme.Shots">
 
         <activity
             android:name=".OnboardingActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScreenshotGuard" />
+            android:theme="@style/Theme.Shots" />
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScreenshotGuard" />
+        <activity android:name=".MainActivity" />
+
+        <activity android:name=".SettingsActivity" />
+
+        <activity android:name=".HistoryActivity" />
+
+        <activity android:name=".PermissionsActivity" />
 
         <activity
             android:name=".ScreenshotOverlayActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Transparent"
-            android:launchMode="singleTop"
-            android:excludeFromRecents="true"
-            android:taskAffinity="" />
-
-        <activity
-            android:name=".SettingsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScreenshotGuard" />
-
-        <activity
-            android:name=".PermissionsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScreenshotGuard" />
-
-        <activity
-            android:name=".HistoryActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ScreenshotGuard" />
+            android:theme="@style/Theme.Shots.Overlay" />
 
         <service
             android:name=".service.ScreenshotDetectionService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="mediaProjection"
+            android:exported="false" />
 
         <receiver
             android:name=".receiver.BootReceiver"
@@ -81,6 +46,15 @@
             </intent-filter>
         </receiver>
 
-    </application>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
+    </application>
 </manifest>
