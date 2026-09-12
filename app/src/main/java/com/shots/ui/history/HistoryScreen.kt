@@ -58,8 +58,7 @@ fun HistoryScreen(onBack: () -> Unit) {
         else -> allScreenshots
     }
 
-    ShotsTheme {
-        Scaffold(
+    Scaffold(
             topBar = {
                 TopAppBar(
                     title = { Text("History") },
@@ -126,11 +125,10 @@ fun HistoryScreen(onBack: () -> Unit) {
                         items(filteredScreenshots) { screenshot ->
                             ScreenshotItem(screenshot)
                             Spacer(modifier = Modifier.height(8.dp))
-                        }
-                    }
-                }
             }
         }
+    }
+}
     }
 }
 

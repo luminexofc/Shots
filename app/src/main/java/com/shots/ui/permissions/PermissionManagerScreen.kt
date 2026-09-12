@@ -6,7 +6,6 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +22,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,7 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +59,10 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
         ActivityResultContracts.RequestPermission()
     ) { granted -> storageGranted = granted }
 
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> notificationGranted = granted }
+
     fun checkPermissions() {
         storageGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
@@ -75,17 +79,19 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.lifecycle.addObserver(object : LifecycleEventObserver {
-            override fun onStateChanged(source: androidx.lifecycle.LifecycleOwner, event: Lifecycle.Event) {
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    checkPermissions()
-                }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                checkPermissions()
             }
-        })
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
-    LaunchedEffect(Unit) { checkPermissions() }
+    checkPermissions()
 
     ShotsTheme {
         Scaffold(
@@ -148,7 +154,7 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
                         granted = notificationGranted,
                         onClick = {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                storageLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             }
                         }
                     )
@@ -190,7 +196,7 @@ private fun PermissionRow(
                 modifier = Modifier.size(24.dp)
             )
         } else {
-            androidx.compose.material3.Button(
+            Button(
                 onClick = onClick,
                 shape = RoundedCornerShape(8.dp)
             ) {

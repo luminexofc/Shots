@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import com.shots.data.PreferencesManager
 import com.shots.data.ScreenshotDatabase
 import com.shots.ui.components.ShotsCard
-import com.shots.ui.theme.ShotsTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,8 +46,7 @@ fun MainScreen() {
     val allScreenshots by db.screenshotDao().getAll().collectAsState(initial = emptyList())
     val pendingCount = allScreenshots.count { it.status == "pending" }
 
-    ShotsTheme {
-        Scaffold(
+    Scaffold(
             topBar = {
                 TopAppBar(
                     title = { Text("Shots") },
@@ -132,7 +130,6 @@ fun MainScreen() {
                         title = "How It Works",
                         onClick = { }
                     )
-                }
             }
         }
     }

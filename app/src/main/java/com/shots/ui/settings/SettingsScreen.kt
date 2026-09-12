@@ -15,12 +15,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -33,7 +35,6 @@ import com.shots.data.PreferencesManager
 import com.shots.ui.components.SegmentedControl
 import com.shots.ui.components.ShotsCard
 import com.shots.ui.theme.ShotsTheme
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -49,6 +50,10 @@ fun SettingsScreen(onBack: () -> Unit) {
     val notifications by prefs.notifications.collectAsState(initial = true)
 
     var sliderValue by remember { mutableFloatStateOf(timerMinutes.toFloat()) }
+
+    LaunchedEffect(timerMinutes) {
+        sliderValue = timerMinutes.toFloat()
+    }
 
     val actions = listOf("Keep", "Timer", "Skip")
     val selectedIndex = when (defaultAction) {
@@ -108,7 +113,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 2 -> "skip"
                                 else -> "keep"
                             }
-                            CoroutineScope(Dispatchers.IO).launch {
+                            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                                 prefs.setDefaultAction(action)
                             }
                         }
@@ -121,11 +126,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        androidx.compose.material3.Slider(
+                        Slider(
                             value = sliderValue,
                             onValueChange = { sliderValue = it },
                             onValueChangeFinished = {
-                                CoroutineScope(Dispatchers.IO).launch {
+                                kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                                     prefs.setTimerMinutes(sliderValue.toInt())
                                 }
                             },
@@ -153,7 +158,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Switch(
                         checked = autoDelete,
                         onCheckedChange = { enabled ->
-                            CoroutineScope(Dispatchers.IO).launch {
+                            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                                 prefs.setAutoDelete(enabled)
                             }
                         },
@@ -182,7 +187,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Switch(
                         checked = notifications,
                         onCheckedChange = { enabled ->
-                            CoroutineScope(Dispatchers.IO).launch {
+                            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                                 prefs.setNotifications(enabled)
                             }
                         },

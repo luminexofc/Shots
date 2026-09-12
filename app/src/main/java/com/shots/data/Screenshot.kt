@@ -1,9 +1,16 @@
 package com.shots.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "screenshots")
+@Entity(
+    tableName = "screenshots",
+    indices = [
+        Index(value = ["status"]),
+        Index(value = ["timestamp"])
+    ]
+)
 data class Screenshot(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val path: String,

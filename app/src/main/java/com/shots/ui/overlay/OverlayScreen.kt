@@ -5,15 +5,14 @@ import android.os.Handler
 import android.os.Looper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -26,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,20 +38,24 @@ import com.shots.data.Screenshot
 import com.shots.data.ScreenshotDatabase
 import com.shots.ui.components.ShotsCard
 import com.shots.ui.theme.ShotsTheme
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
-fun OverlayScreen(onDismiss: () -> Unit) {
+fun OverlayScreen(
+    screenshotPath: String,
+    onDismiss: () -> Unit
+) {
     val context = LocalContext.current
     val db = ScreenshotDatabase.getInstance(context)
     val prefs = PreferencesManager(context)
     var showTimerDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     val handler = remember { Handler(Looper.getMainLooper()) }
 
@@ -60,13 +64,21 @@ fun OverlayScreen(onDismiss: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background.copy(alpha = 0.6f))
-                .clickable { onDismiss() },
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onDismiss() },
             contentAlignment = Alignment.Center
         ) {
             ShotsCard(
                 modifier = Modifier
                     .padding(32.dp)
-                    .clickable { }
+                    .clickable(
+                        enabled = false,
+                        onClick = {},
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    )
                     .clip(RoundedCornerShape(16.dp))
             ) {
                 Column(
@@ -90,18 +102,20 @@ fun OverlayScreen(onDismiss: () -> Unit) {
 
                     Button(
                         onClick = {
-                            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                            val appDir = intent?.data?.path ?: ""
-                            CoroutineScope(Dispatchers.IO).launch {
-                                db.screenshotDao().insert(
-                                    Screenshot(
-                                        path = appDir,
-                                        timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
-                                        status = "kept"
+                            coroutineScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    db.screenshotDao().insert(
+                                        Screenshot(
+                                            path = screenshotPath,
+                                            timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                            status = "kept"
+                                        )
                                     )
-                                )
+                                }
+                                withContext(Dispatchers.Main) {
+                                    onDismiss()
+                                }
                             }
-                            onDismiss()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -117,16 +131,30 @@ fun OverlayScreen(onDismiss: () -> Unit) {
 
                     Button(
                         onClick = {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                val screenshots = db.screenshotDao().getAllOnce()
-                                val latest = screenshots.firstOrNull()
-                                if (latest != null) {
-                                    val file = File(latest.path)
-                                    if (file.exists()) file.delete()
-                                    db.screenshotDao().updateStatus(latest.id, "deleted")
+                            coroutineScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    val file = File(screenshotPath)
+                                    if (file.exists()) {
+                                        file.delete()
+                                    }
+                                    val screenshots = db.screenshotDao().getAllOnce()
+                                    val latest = screenshots.firstOrNull { it.path == screenshotPath }
+                                    if (latest != null) {
+                                        db.screenshotDao().updateStatus(latest.id, "deleted")
+                                    } else {
+                                        db.screenshotDao().insert(
+                                            Screenshot(
+                                                path = screenshotPath,
+                                                timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                                status = "deleted"
+                                            )
+                                        )
+                                    }
+                                }
+                                withContext(Dispatchers.Main) {
+                                    onDismiss()
                                 }
                             }
-                            onDismiss()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -164,16 +192,21 @@ fun OverlayScreen(onDismiss: () -> Unit) {
             TimerPickerDialog(
                 onDismiss = { showTimerDialog = false },
                 onTimerSelected = { minutes ->
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val screenshots = db.screenshotDao().getAllOnce()
-                        val latest = screenshots.firstOrNull()
-                        if (latest != null) {
-                            db.screenshotDao().updateStatus(latest.id, "pending")
+                    coroutineScope.launch {
+                        withContext(Dispatchers.IO) {
+                            db.screenshotDao().insert(
+                                Screenshot(
+                                    path = screenshotPath,
+                                    timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                    status = "pending"
+                                )
+                            )
+                            prefs.setTimerMinutes(minutes)
                         }
-                        prefs.setTimerMinutes(minutes)
+                        withContext(Dispatchers.Main) {
+                            onDismiss()
+                        }
                     }
-                    showTimerDialog = false
-                    onDismiss()
                 }
             )
         }
@@ -186,7 +219,6 @@ private fun TimerPickerDialog(
     onTimerSelected: (Int) -> Unit
 ) {
     val options = listOf(1, 5, 15, 30, 60)
-    val labels = options.map { "$it min" }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -199,14 +231,14 @@ private fun TimerPickerDialog(
         },
         text = {
             Column {
-                labels.forEachIndexed { index, label ->
+                options.forEach { minutes ->
                     Text(
-                        text = label,
+                        text = "$minutes min",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onTimerSelected(options[index]) }
+                            .clickable { onTimerSelected(minutes) }
                             .padding(vertical = 12.dp)
                     )
                 }

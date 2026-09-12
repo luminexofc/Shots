@@ -9,9 +9,13 @@ import com.shots.ui.theme.ShotsTheme
 class ScreenshotOverlayActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val screenshotPath = intent.getStringExtra("screenshot_path") ?: ""
         setContent {
             ShotsTheme {
-                OverlayScreen(onDismiss = { finish() })
+                OverlayScreen(
+                    screenshotPath = screenshotPath,
+                    onDismiss = { finish() }
+                )
             }
         }
     }

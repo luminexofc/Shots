@@ -32,4 +32,7 @@ interface ScreenshotDao {
 
     @Delete
     suspend fun delete(screenshot: Screenshot)
+
+    @Query("DELETE FROM screenshots WHERE status = :status")
+    suspend fun deleteByStatus(status: String)
 }

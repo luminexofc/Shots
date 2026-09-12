@@ -19,7 +19,9 @@ abstract class ScreenshotDatabase : RoomDatabase() {
                     context.applicationContext,
                     ScreenshotDatabase::class.java,
                     "shots_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }
