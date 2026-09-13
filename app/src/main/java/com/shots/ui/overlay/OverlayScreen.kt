@@ -204,6 +204,7 @@ fun OverlayScreen(
                             )
                             prefs.setTimerMinutes(minutes)
                         }
+                        app.scheduleTimerDeletion(minutes)
                         app.trackScreenshotAction("timer_set")
                         withContext(Dispatchers.Main) {
                             onDismiss()
