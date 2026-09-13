@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.shots.data.PreferencesManager
 import com.shots.data.ScreenshotDatabase
+import kotlinx.coroutines.flow.first
 import java.io.File
 
 class AutoDeleteWorker(
@@ -15,9 +17,14 @@ class AutoDeleteWorker(
     override suspend fun doWork(): Result {
         return try {
             val db = ScreenshotDatabase.getInstance(applicationContext)
-            val pendingScreenshots = db.screenshotDao().getPendingDeletionOnce()
+            val prefs = PreferencesManager(applicationContext)
+            val autoDelete = prefs.autoDelete.first()
+            if (!autoDelete) return Result.success()
 
-            for (screenshot in pendingScreenshots) {
+            val now = System.currentTimeMillis()
+            val expiredScreenshots = db.screenshotDao().getExpiredPendingOnce(now)
+
+            for (screenshot in expiredScreenshots) {
                 try {
                     val file = File(screenshot.path)
                     if (file.exists()) {

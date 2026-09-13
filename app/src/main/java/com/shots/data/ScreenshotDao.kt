@@ -18,6 +18,9 @@ interface ScreenshotDao {
     @Query("SELECT * FROM screenshots WHERE status = 'pending' ORDER BY timestamp DESC")
     fun getPendingDeletion(): Flow<List<Screenshot>>
 
+    @Query("SELECT * FROM screenshots WHERE status = 'pending' AND scheduledDeletionAt > 0 AND scheduledDeletionAt <= :now ORDER BY timestamp DESC")
+    suspend fun getExpiredPendingOnce(now: Long): List<Screenshot>
+
     @Query("SELECT * FROM screenshots WHERE status = 'pending' ORDER BY timestamp DESC")
     suspend fun getPendingDeletionOnce(): List<Screenshot>
 

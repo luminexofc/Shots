@@ -198,7 +198,8 @@ fun OverlayScreen(
                                 Screenshot(
                                     path = screenshotPath,
                                     timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
-                                    status = "pending"
+                                    status = "pending",
+                                    scheduledDeletionAt = System.currentTimeMillis() + (minutes * 60 * 1000L)
                                 )
                             )
                             prefs.setTimerMinutes(minutes)

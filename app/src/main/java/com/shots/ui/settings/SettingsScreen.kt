@@ -188,7 +188,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            uncheckedThumbColor = MaterialTheme.colorScheme.surface,
+                            uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                            uncheckedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
                     )
                 }
@@ -224,7 +227,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            uncheckedThumbColor = MaterialTheme.colorScheme.surface,
+                            uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                            uncheckedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
                     )
                 }

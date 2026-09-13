@@ -15,5 +15,6 @@ data class Screenshot(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val path: String,
     val timestamp: String,
-    val status: String
+    val status: String,
+    val scheduledDeletionAt: Long = 0L
 )

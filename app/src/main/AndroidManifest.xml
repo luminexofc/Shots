@@ -37,6 +37,8 @@
 
         <activity
             android:name=".ScreenshotOverlayActivity"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
             android:theme="@style/Theme.Shots.Overlay" />
 
         <service
