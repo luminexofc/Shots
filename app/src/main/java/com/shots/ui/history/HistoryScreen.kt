@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.shots.data.Screenshot
 import com.shots.data.ScreenshotDatabase
+import com.shots.util.MediaStoreUtils
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,9 +137,8 @@ fun HistoryScreen(onBack: () -> Unit) {
                             screenshot = screenshot,
                             onClick = {
                                 try {
-                                    val file = File(screenshot.path)
-                                    if (file.exists()) {
-                                        val uri = Uri.fromFile(file)
+                                    val uri = MediaStoreUtils.getUriForScreenshot(context, screenshot.path)
+                                    if (uri != null) {
                                         val intent = Intent(Intent.ACTION_VIEW).apply {
                                             setDataAndType(uri, "image/*")
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -158,6 +158,7 @@ fun HistoryScreen(onBack: () -> Unit) {
 
 @Composable
 private fun ScreenshotItem(screenshot: Screenshot, onClick: () -> Unit) {
+    val context = LocalContext.current
     val statusColor = when (screenshot.status) {
         "kept" -> MaterialTheme.colorScheme.primary
         "deleted" -> MaterialTheme.colorScheme.error
@@ -174,10 +175,12 @@ private fun ScreenshotItem(screenshot: Screenshot, onClick: () -> Unit) {
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val file = File(screenshot.path)
-        if (file.exists()) {
+        val uri = remember(screenshot.path) {
+            MediaStoreUtils.getUriForScreenshot(context, screenshot.path)
+        }
+        if (uri != null) {
             Image(
-                painter = rememberAsyncImagePainter(model = file),
+                painter = rememberAsyncImagePainter(model = uri),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)

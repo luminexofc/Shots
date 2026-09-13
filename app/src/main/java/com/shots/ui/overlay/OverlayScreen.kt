@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ import com.shots.data.PreferencesManager
 import com.shots.data.Screenshot
 import com.shots.data.ScreenshotDatabase
 import com.shots.ui.components.ShotsCard
+import com.shots.util.MediaStoreUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,7 +60,7 @@ fun OverlayScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.6f))
+            .background(Color.Black.copy(alpha = 0.5f))
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
@@ -129,10 +131,7 @@ fun OverlayScreen(
                         onClick = {
                             coroutineScope.launch {
                                 withContext(Dispatchers.IO) {
-                                    val file = File(screenshotPath)
-                                    if (file.exists()) {
-                                        file.delete()
-                                    }
+                                    MediaStoreUtils.deleteScreenshot(context, screenshotPath)
                                     val screenshots = db.screenshotDao().getAllOnce()
                                     val latest = screenshots.firstOrNull { it.path == screenshotPath }
                                     if (latest != null) {

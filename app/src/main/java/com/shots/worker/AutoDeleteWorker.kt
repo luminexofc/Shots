@@ -6,8 +6,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.shots.data.PreferencesManager
 import com.shots.data.ScreenshotDatabase
+import com.shots.util.MediaStoreUtils
 import kotlinx.coroutines.flow.first
-import java.io.File
 
 class AutoDeleteWorker(
     context: Context,
@@ -26,13 +26,7 @@ class AutoDeleteWorker(
 
             for (screenshot in expiredScreenshots) {
                 try {
-                    val file = File(screenshot.path)
-                    if (file.exists()) {
-                        val deleted = file.delete()
-                        if (!deleted) {
-                            Log.w("AutoDeleteWorker", "Failed to delete: ${screenshot.path}")
-                        }
-                    }
+                    MediaStoreUtils.deleteScreenshot(applicationContext, screenshot.path)
                     db.screenshotDao().updateStatus(screenshot.id, "deleted")
                 } catch (e: Exception) {
                     Log.e("AutoDeleteWorker", "Error deleting screenshot: ${screenshot.path}", e)
