@@ -26,8 +26,13 @@ class AutoDeleteWorker(
 
             for (screenshot in expiredScreenshots) {
                 try {
-                    MediaStoreUtils.deleteScreenshot(applicationContext, screenshot.path)
-                    db.screenshotDao().updateStatus(screenshot.id, "deleted")
+                    val deleted = MediaStoreUtils.deleteScreenshot(applicationContext, screenshot.path)
+                    if (deleted) {
+                        db.screenshotDao().updateStatus(screenshot.id, "deleted")
+                        Log.d("AutoDeleteWorker", "Deleted: ${screenshot.path}")
+                    } else {
+                        Log.w("AutoDeleteWorker", "Failed to delete: ${screenshot.path}")
+                    }
                 } catch (e: Exception) {
                     Log.e("AutoDeleteWorker", "Error deleting screenshot: ${screenshot.path}", e)
                 }

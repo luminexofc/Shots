@@ -25,7 +25,6 @@ class ScreenshotDetectionService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        suppressOverlay = false
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
         registerScreenshotObserver()
@@ -101,7 +100,6 @@ class ScreenshotDetectionService : Service() {
         contentObserver = object : ContentObserver(handler) {
             override fun onChange(selfChange: Boolean, uri: Uri?) {
                 super.onChange(selfChange, uri)
-                if (suppressOverlay) return
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastScreenshotTime < 3000) return
 
@@ -122,6 +120,9 @@ class ScreenshotDetectionService : Service() {
                             if (pathIndex >= 0) {
                                 val path = cursor.getString(pathIndex) ?: return
                                 val dateAdded = if (dateIndex >= 0) cursor.getLong(dateIndex) else 0L
+
+                                val file = java.io.File(path)
+                                if (!file.exists()) return
 
                                 val isScreenshot = isScreenshotPath(path)
                                 val isRecent = dateAdded * 1000L > currentTime - 5000
@@ -159,11 +160,5 @@ class ScreenshotDetectionService : Service() {
         private const val TAG = "ScreenshotDetection"
         const val CHANNEL_ID = "shots_detection_channel"
         const val NOTIFICATION_ID = 1001
-        @Volatile
-        var suppressOverlay = false
-            private set
-
-        fun suppressNext() { suppressOverlay = true }
-        fun allowNext() { suppressOverlay = false }
     }
 }
