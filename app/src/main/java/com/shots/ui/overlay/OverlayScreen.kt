@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.shots.ShotsApp
 import com.shots.data.PreferencesManager
 import com.shots.data.Screenshot
 import com.shots.data.ScreenshotDatabase
@@ -52,6 +53,7 @@ fun OverlayScreen(
     val prefs = PreferencesManager(context)
     var showTimerDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val app = context.applicationContext as ShotsApp
 
     Box(
         modifier = Modifier
@@ -105,6 +107,7 @@ fun OverlayScreen(
                                         )
                                     )
                                 }
+                                app.trackScreenshotAction("kept")
                                 withContext(Dispatchers.Main) {
                                     onDismiss()
                                 }
@@ -144,6 +147,7 @@ fun OverlayScreen(
                                         )
                                     }
                                 }
+                                app.trackScreenshotAction("deleted")
                                 withContext(Dispatchers.Main) {
                                     onDismiss()
                                 }
@@ -171,7 +175,10 @@ fun OverlayScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = {
+                        app.trackScreenshotAction("skipped")
+                        onDismiss()
+                    }) {
                         Text(
                             "Skip",
                             color = MaterialTheme.colorScheme.secondary
@@ -196,6 +203,7 @@ fun OverlayScreen(
                             )
                             prefs.setTimerMinutes(minutes)
                         }
+                        app.trackScreenshotAction("timer_set")
                         withContext(Dispatchers.Main) {
                             onDismiss()
                         }

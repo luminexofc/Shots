@@ -13,6 +13,7 @@ class PermissionsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = PreferencesManager(this)
+        (application as ShotsApp).trackScreenView("Permissions")
         setContent {
             val darkMode by prefs.darkMode.collectAsState(initial = 0)
             ShotsTheme(darkMode = darkMode) {

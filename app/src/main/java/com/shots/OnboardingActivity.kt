@@ -38,6 +38,7 @@ class OnboardingActivity : ComponentActivity() {
                         lifecycleScope.launch {
                             prefs.setOnboardingDone()
                             ShotsApp.startDetectionService(this@OnboardingActivity)
+                            (application as ShotsApp).trackOnboardingCompleted()
                             navigateToMain()
                         }
                     }

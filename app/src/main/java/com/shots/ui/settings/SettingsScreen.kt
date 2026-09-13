@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.shots.ShotsApp
 import com.shots.data.PreferencesManager
 import com.shots.ui.components.SegmentedControl
 import com.shots.ui.components.ShotsCard
@@ -51,6 +52,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = PreferencesManager(context)
+    val app = context.applicationContext as ShotsApp
 
     val defaultAction by prefs.defaultAction.collectAsState(initial = "keep")
     val timerMinutes by prefs.timerMinutes.collectAsState(initial = 5)
@@ -126,6 +128,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                         CoroutineScope(Dispatchers.IO).launch {
                             prefs.setDefaultAction(action)
                         }
+                        app.trackSettingChanged("default_action", action)
                     }
                 )
 
@@ -143,6 +146,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             CoroutineScope(Dispatchers.IO).launch {
                                 prefs.setTimerMinutes(sliderValue.toInt())
                             }
+                            app.trackSettingChanged("timer_minutes", sliderValue.toInt())
                         },
                         valueRange = 1f..60f,
                         modifier = Modifier.fillMaxWidth(),
@@ -180,6 +184,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             CoroutineScope(Dispatchers.IO).launch {
                                 prefs.setAutoDelete(enabled)
                             }
+                            app.trackSettingChanged("auto_delete", enabled)
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
@@ -215,6 +220,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             CoroutineScope(Dispatchers.IO).launch {
                                 prefs.setNotifications(enabled)
                             }
+                            app.trackSettingChanged("notifications", enabled)
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
@@ -247,6 +253,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                         CoroutineScope(Dispatchers.IO).launch {
                             prefs.setDarkMode(index)
                         }
+                        app.trackSettingChanged("theme", themeOptions[index])
                     }
                 )
             }

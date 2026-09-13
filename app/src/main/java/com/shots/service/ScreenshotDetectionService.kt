@@ -13,10 +13,8 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.MediaStore
+import android.util.Log
 import com.shots.ScreenshotOverlayActivity
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class ScreenshotDetectionService : Service() {
     private var contentObserver: ContentObserver? = null
@@ -30,6 +28,7 @@ class ScreenshotDetectionService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
         registerScreenshotObserver()
+        Log.d(TAG, "Screenshot detection service started")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -41,18 +40,21 @@ class ScreenshotDetectionService : Service() {
         contentObserver?.let {
             contentResolver.unregisterContentObserver(it)
         }
+        Log.d(TAG, "Screenshot detection service stopped")
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Screenshot Detection",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Monitoring for screenshots"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Screenshot Detection",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Monitoring for screenshots"
+            }
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
         }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
     }
 
     private fun createNotification(): Notification {
@@ -124,13 +126,14 @@ class ScreenshotDetectionService : Service() {
 
                                 if (isScreenshot || isRecent) {
                                     lastScreenshotTime = currentTime
+                                    (application as? com.shots.ShotsApp)?.trackScreenshotDetected()
                                     launchOverlay(path)
                                 }
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e(TAG, "Error checking for screenshot", e)
                 }
             }
         }
@@ -150,6 +153,7 @@ class ScreenshotDetectionService : Service() {
     }
 
     companion object {
+        private const val TAG = "ScreenshotDetection"
         const val CHANNEL_ID = "shots_detection_channel"
         const val NOTIFICATION_ID = 1001
     }

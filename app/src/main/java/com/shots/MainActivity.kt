@@ -15,6 +15,7 @@ class MainActivity : ComponentActivity() {
         val prefs = PreferencesManager(this)
 
         ShotsApp.startDetectionService(this)
+        (application as ShotsApp).trackAppOpened()
 
         setContent {
             val darkMode by prefs.darkMode.collectAsState(initial = 0)
