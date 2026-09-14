@@ -3,6 +3,7 @@ package com.shots.ui.onboarding
 import android.Manifest
 import android.content.Intent
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Visibility
@@ -56,6 +58,34 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 
+private fun openAllFilesSettings(context: android.content.Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+    try {
+        // Per-app screen — works on most devices
+        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+            data = android.net.Uri.parse("package:${context.packageName}")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (_: Exception) {
+        try {
+            // Fallback: the all-apps list screen
+            context.startActivity(
+                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Exception) {
+            // Last resort: general app details
+            context.startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = android.net.Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(onComplete: () -> Unit) {
@@ -66,6 +96,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     var storageGranted by remember { mutableStateOf(false) }
     var overlayGranted by remember { mutableStateOf(false) }
     var notificationGranted by remember { mutableStateOf(false) }
+    var allFilesGranted by remember { mutableStateOf(false) }
 
     val storageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -87,6 +118,9 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
                     android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else true
+        allFilesGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
         } else true
     }
 
@@ -122,6 +156,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     storageGranted = storageGranted,
                     overlayGranted = overlayGranted,
                     notificationGranted = notificationGranted,
+                    allFilesGranted = allFilesGranted,
                     onStorageClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
@@ -134,6 +169,9 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                             data = android.net.Uri.parse("package:${context.packageName}")
                         }
                         context.startActivity(intent)
+                    },
+                    onAllFilesClick = {
+                        openAllFilesSettings(context)
                     },
                     onNotificationClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -243,7 +281,9 @@ private fun WelcomePage() {
 @Composable
 private fun PermissionsPage(
     storageGranted: Boolean, overlayGranted: Boolean, notificationGranted: Boolean,
-    onStorageClick: () -> Unit, onOverlayClick: () -> Unit, onNotificationClick: () -> Unit
+    allFilesGranted: Boolean,
+    onStorageClick: () -> Unit, onOverlayClick: () -> Unit, onAllFilesClick: () -> Unit,
+    onNotificationClick: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -257,6 +297,8 @@ private fun PermissionsPage(
         PermissionItem(icon = Icons.Default.PhotoLibrary, title = "Storage Access", granted = storageGranted, onClick = onStorageClick)
         Spacer(modifier = Modifier.height(16.dp))
         PermissionItem(icon = Icons.Default.Visibility, title = "Display Over Apps", granted = overlayGranted, onClick = onOverlayClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        PermissionItem(icon = Icons.Default.Delete, title = "All Files Access", granted = allFilesGranted, onClick = onAllFilesClick)
         Spacer(modifier = Modifier.height(16.dp))
         PermissionItem(icon = Icons.Default.Notifications, title = "Notifications", granted = notificationGranted, onClick = onNotificationClick)
     }

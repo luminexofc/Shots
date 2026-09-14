@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mixpanel.android.mpmetrics.MixpanelAPI
@@ -41,14 +40,6 @@ class ShotsApp : Application() {
             ExistingPeriodicWorkPolicy.KEEP,
             workRequest
         )
-    }
-
-    fun scheduleTimerDeletion(delayMinutes: Int) {
-        val workRequest = OneTimeWorkRequestBuilder<AutoDeleteWorker>()
-            .setInitialDelay(delayMinutes.toLong(), TimeUnit.MINUTES)
-            .addTag("timer_delete")
-            .build()
-        WorkManager.getInstance(this).enqueue(workRequest)
     }
 
     companion object {

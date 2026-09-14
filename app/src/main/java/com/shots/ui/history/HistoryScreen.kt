@@ -178,9 +178,13 @@ private fun ScreenshotItem(screenshot: Screenshot, onClick: () -> Unit) {
         val uri = remember(screenshot.path) {
             MediaStoreUtils.getUriForScreenshot(context, screenshot.path)
         }
-        if (uri != null) {
+        val model: Any? = uri ?: run {
+            val f = File(screenshot.path)
+            if (f.exists()) f else null
+        }
+        if (model != null) {
             Image(
-                painter = rememberAsyncImagePainter(model = uri),
+                painter = rememberAsyncImagePainter(model = model),
                 contentDescription = null,
                 modifier = Modifier
                     .size(48.dp)
@@ -206,7 +210,7 @@ private fun ScreenshotItem(screenshot: Screenshot, onClick: () -> Unit) {
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = screenshot.path.substringAfterLast("/").take(30),
+                text = MediaStoreUtils.displayName(screenshot.path).take(30),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )

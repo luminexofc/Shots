@@ -24,6 +24,12 @@ interface ScreenshotDao {
     @Query("SELECT * FROM screenshots WHERE status = 'pending' ORDER BY timestamp DESC")
     suspend fun getPendingDeletionOnce(): List<Screenshot>
 
+    @Query("SELECT * FROM screenshots WHERE path = :path ORDER BY id DESC LIMIT 1")
+    suspend fun getByPath(path: String): Screenshot?
+
+    @Query("SELECT * FROM screenshots WHERE status = 'pending' AND scheduledDeletionAt > 0 ORDER BY scheduledDeletionAt ASC")
+    suspend fun getPendingScheduledOnce(): List<Screenshot>
+
     @Insert
     suspend fun insert(screenshot: Screenshot): Long
 

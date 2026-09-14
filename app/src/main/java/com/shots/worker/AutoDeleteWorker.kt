@@ -4,11 +4,17 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.shots.data.PreferencesManager
 import com.shots.data.ScreenshotDatabase
+import com.shots.util.DeleteSuppressor
 import com.shots.util.MediaStoreUtils
-import kotlinx.coroutines.flow.first
+import com.shots.util.NotificationHelper
+import java.io.File
 
+/**
+ * Safety-net worker: runs periodically to clean up pending deletions whose
+ * exact alarms were missed (device restarted, alarm killed, etc.).
+ * Primary deletion path is TimerAlarmScheduler + TimerDeleteReceiver.
+ */
 class AutoDeleteWorker(
     context: Context,
     params: WorkerParameters
@@ -17,12 +23,15 @@ class AutoDeleteWorker(
     override suspend fun doWork(): Result {
         return try {
             val db = ScreenshotDatabase.getInstance(applicationContext)
-            val prefs = PreferencesManager(applicationContext)
-            val autoDelete = prefs.autoDelete.first()
-            if (!autoDelete) return Result.success()
 
             val now = System.currentTimeMillis()
             val expiredScreenshots = db.screenshotDao().getExpiredPendingOnce(now)
+
+            if (expiredScreenshots.isEmpty()) return Result.success()
+
+            Log.d("AutoDeleteWorker", "Safety net: ${expiredScreenshots.size} expired screenshot(s)")
+
+            DeleteSuppressor.suppressAll(expiredScreenshots.map { it.path })
 
             for (screenshot in expiredScreenshots) {
                 try {
@@ -30,8 +39,15 @@ class AutoDeleteWorker(
                     if (deleted) {
                         db.screenshotDao().updateStatus(screenshot.id, "deleted")
                         Log.d("AutoDeleteWorker", "Deleted: ${screenshot.path}")
+                    } else if (File(screenshot.path).exists()) {
+                        // Blocked by system — ask user to confirm via system dialog
+                        NotificationHelper.showConfirmDeleteNotification(
+                            applicationContext, screenshot.path, screenshot.id
+                        )
+                        Log.w("AutoDeleteWorker", "Needs user confirmation: ${screenshot.path}")
                     } else {
-                        Log.w("AutoDeleteWorker", "Failed to delete: ${screenshot.path}")
+                        // File already gone — just update DB
+                        db.screenshotDao().updateStatus(screenshot.id, "deleted")
                     }
                 } catch (e: Exception) {
                     Log.e("AutoDeleteWorker", "Error deleting screenshot: ${screenshot.path}", e)

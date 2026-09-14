@@ -14,12 +14,20 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
+import com.shots.MainActivity
 import com.shots.ScreenshotOverlayActivity
+import com.shots.ShotsApp
+import com.shots.util.DeleteSuppressor
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 class ScreenshotDetectionService : Service() {
     private var contentObserver: ContentObserver? = null
     private val handler = Handler(Looper.getMainLooper())
     private var lastScreenshotTime = 0L
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -40,7 +48,8 @@ class ScreenshotDetectionService : Service() {
         contentObserver?.let {
             contentResolver.unregisterContentObserver(it)
         }
-        Log.d(TAG, "Screenshot detection service stopped")
+        serviceScope.cancel()
+        Log.d(TAG, "Screenshot detection stopped")
     }
 
     private fun createNotificationChannel() {
@@ -58,41 +67,48 @@ class ScreenshotDetectionService : Service() {
     }
 
     private fun createNotification(): Notification {
-        val intent = Intent(this, ScreenshotOverlayActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("Shots")
-                .setContentText("Monitoring for screenshots")
-                .setSmallIcon(android.R.drawable.ic_menu_camera)
-                .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .build()
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-                .setContentTitle("Shots")
-                .setContentText("Monitoring for screenshots")
-                .setSmallIcon(android.R.drawable.ic_menu_camera)
-                .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .build()
-        }
+        return Notification.Builder(this, CHANNEL_ID)
+            .setContentTitle("Shots")
+            .setContentText("Monitoring for screenshots")
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .build()
     }
 
     private fun isScreenshotPath(path: String?): Boolean {
         if (path == null) return false
         val lowerPath = path.lowercase()
-        return lowerPath.contains("screenshot") ||
+        val fileName = lowerPath.substringAfterLast('/')
+        return lowerPath.contains("/screenshots/") ||
                 lowerPath.contains("screen_shot") ||
                 lowerPath.contains("screen-shot") ||
-                lowerPath.contains("dcim/screenshots") ||
-                lowerPath.contains("pictures/screenshots") ||
-                lowerPath.contains("/screenshots/")
+                fileName.contains("screenshot")
+    }
+
+    private fun isTrashPath(path: String?): Boolean {
+        if (path == null) return false
+        val lowerPath = path.lowercase()
+        return lowerPath.contains("/.trash/") ||
+                lowerPath.contains(".trashed-") ||
+                lowerPath.contains("/trash/") ||
+                lowerPath.contains("/recently_deleted/") ||
+                lowerPath.contains("/recentlydeleted/")
+    }
+
+    /**
+     * Android stages new files as ".pending-<id>-Name.jpg" and renames after write.
+     * Never act on pending items — wait for the final name.
+     */
+    private fun isPendingPath(path: String?): Boolean {
+        if (path == null) return false
+        return path.substringAfterLast('/').startsWith(".pending-")
     }
 
     private fun registerScreenshotObserver() {
@@ -100,10 +116,10 @@ class ScreenshotDetectionService : Service() {
         contentObserver = object : ContentObserver(handler) {
             override fun onChange(selfChange: Boolean, uri: Uri?) {
                 super.onChange(selfChange, uri)
+                uri ?: return
+
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastScreenshotTime < 3000) return
-
-                uri ?: return
 
                 try {
                     val projection = arrayOf(
@@ -118,18 +134,30 @@ class ScreenshotDetectionService : Service() {
                             val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
 
                             if (pathIndex >= 0) {
-                                val path = cursor.getString(pathIndex) ?: return
+                                var path = cursor.getString(pathIndex) ?: return
                                 val dateAdded = if (dateIndex >= 0) cursor.getLong(dateIndex) else 0L
+
+                                // Never trigger on staging/trash/pending entries
+                                if (isPendingPath(path)) return
+                                if (isTrashPath(path)) return
+                                if (DeleteSuppressor.isSuppressed(path)) {
+                                    Log.d(TAG, "Ignoring app-handled change: $path")
+                                    return
+                                }
+
+                                // Resolve the real path (strip stale staging prefix if present)
+                                path = com.shots.util.MediaStoreUtils.cleanPath(path)
 
                                 val file = java.io.File(path)
                                 if (!file.exists()) return
 
+                                // Strict check: must be a real screenshot AND recently added
                                 val isScreenshot = isScreenshotPath(path)
-                                val isRecent = dateAdded * 1000L > currentTime - 5000
+                                val isRecent = dateAdded * 1000L > currentTime - 10000
 
-                                if (isScreenshot || isRecent) {
+                                if (isScreenshot && isRecent) {
                                     lastScreenshotTime = currentTime
-                                    (application as? com.shots.ShotsApp)?.trackScreenshotDetected()
+                                    (application as? ShotsApp)?.trackScreenshotDetected()
                                     launchOverlay(path)
                                 }
                             }

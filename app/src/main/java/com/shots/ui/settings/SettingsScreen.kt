@@ -109,7 +109,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "What happens when a screenshot is detected",
+                    text = "Default timer length used in the popup",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.secondary
                 )

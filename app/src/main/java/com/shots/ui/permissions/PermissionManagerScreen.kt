@@ -3,6 +3,7 @@ package com.shots.ui.permissions
 import android.Manifest
 import android.content.Intent
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Visibility
@@ -54,6 +56,7 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
     var storageGranted by remember { mutableStateOf(false) }
     var overlayGranted by remember { mutableStateOf(false) }
     var notificationGranted by remember { mutableStateOf(false) }
+    var allFilesGranted by remember { mutableStateOf(false) }
 
     val storageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -75,6 +78,9 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
         notificationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
                     android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else true
+        allFilesGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
         } else true
     }
 
@@ -143,6 +149,34 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
                                 data = android.net.Uri.parse("package:${context.packageName}")
                             }
                             context.startActivity(intent)
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                ShotsCard {
+                    PermissionRow(
+                        icon = Icons.Default.Delete,
+                        title = "All Files Access",
+                        granted = allFilesGranted,
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                try {
+                                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    try {
+                                        context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                                    } catch (_: Exception) {
+                                        context.startActivity(
+                                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                                data = android.net.Uri.parse("package:${context.packageName}")
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     )
                 }
