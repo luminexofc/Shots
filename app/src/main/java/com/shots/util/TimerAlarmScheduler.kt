@@ -54,8 +54,13 @@ object TimerAlarmScheduler {
      * Snooze: re-notify about this screenshot after delayMin minutes.
      * Fires SnoozeReceiver which posts a tap-to-review notification
      * (an alarm cannot start the popup activity directly from background).
+     * The row stays status='snoozed' — never deleted by this path.
      */
     fun snooze(context: Context, path: String, delayMin: Int = 10) {
+        snoozeAt(context, path, System.currentTimeMillis() + delayMin * 60_000L)
+    }
+
+    fun snoozeAt(context: Context, path: String, triggerAt: Long) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         val intent = Intent(context, com.shots.SnoozeReceiver::class.java).apply {
@@ -67,7 +72,6 @@ object TimerAlarmScheduler {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val triggerAt = System.currentTimeMillis() + delayMin * 60_000L
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
@@ -76,13 +80,25 @@ object TimerAlarmScheduler {
                 return
             }
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
-            Log.d(TAG, "Snooze scheduled in ${delayMin}m for $path")
+            Log.d(TAG, "Snooze scheduled at $triggerAt for $path")
         } catch (e: SecurityException) {
             Log.w(TAG, "Exact alarm rejected, falling back to inexact for snooze", e)
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to schedule snooze", e)
         }
+    }
+
+    fun cancelSnooze(context: Context, path: String) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, com.shots.SnoozeReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            (path.hashCode() xor 0x5eed),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        am.cancel(pendingIntent)
     }
 
     fun cancel(context: Context, screenshotId: Long) {        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -97,7 +113,7 @@ object TimerAlarmScheduler {
     }
 
     /**
-     * Reschedule all pending timers (e.g. after device reboot).
+     * Reschedule all pending timers + snoozed reminders (e.g. after device reboot).
      */
     fun rescheduleAll(context: Context) {
         Thread {
@@ -105,6 +121,9 @@ object TimerAlarmScheduler {
                 val db = com.shots.data.ScreenshotDatabase.getInstance(context)
                 val pending = kotlinx.coroutines.runBlocking {
                     db.screenshotDao().getPendingScheduledOnce()
+                }
+                val snoozed = kotlinx.coroutines.runBlocking {
+                    db.screenshotDao().getSnoozedScheduledOnce()
                 }
                 val now = System.currentTimeMillis()
                 var rescheduled = 0
@@ -117,7 +136,15 @@ object TimerAlarmScheduler {
                         Log.d(TAG, "Expired pending: ${s.path}")
                     }
                 }
-                Log.d(TAG, "Rescheduled $rescheduled/$pending.size pending timers after boot")
+                for (s in snoozed) {
+                    if (s.scheduledDeletionAt > now) {
+                        snoozeAt(context, s.path, s.scheduledDeletionAt)
+                        rescheduled++
+                    } else {
+                        Log.d(TAG, "Expired snooze: ${s.path}")
+                    }
+                }
+                Log.d(TAG, "Rescheduled $rescheduled pending timers/snoozes after boot")
             } catch (e: Exception) {
                 Log.e(TAG, "rescheduleAll failed", e)
             }

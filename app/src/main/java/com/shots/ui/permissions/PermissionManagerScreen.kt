@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Visibility
@@ -29,6 +30,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -57,6 +59,7 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
     var overlayGranted by remember { mutableStateOf(false) }
     var notificationGranted by remember { mutableStateOf(false) }
     var allFilesGranted by remember { mutableStateOf(false) }
+    var batteryWhitelisted by remember { mutableStateOf(false) }
 
     val storageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -82,6 +85,7 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
         allFilesGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
         } else true
+        batteryWhitelisted = com.shots.util.BatteryOptHelper.isWhitelisted(context)
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -192,6 +196,24 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
                             }
                         }
                     )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                ShotsCard {
+                    PermissionRow(
+                        icon = Icons.Default.DirectionsRun,
+                        title = "Run in Background",
+                        granted = batteryWhitelisted,
+                        onClick = {
+                            com.shots.util.BatteryOptHelper.requestWhitelist(context)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            com.shots.util.AutoStartHelper.openSettings(context)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Allow auto-start") }
                 }
             }
         }

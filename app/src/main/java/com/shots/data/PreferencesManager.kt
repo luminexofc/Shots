@@ -16,18 +16,24 @@ class PreferencesManager(private val context: Context) {
 
     private object Keys {
         val TIMER_MINUTES = intPreferencesKey("timer_minutes")
+        val SNOOZE_MINUTES = intPreferencesKey("snooze_minutes")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val DARK_MODE = intPreferencesKey("dark_mode") // 0=system, 1=dark, 2=light
         val SHOW_EDIT_BUTTON = booleanPreferencesKey("show_edit_button")
     }
 
     val timerMinutes: Flow<Int> = context.dataStore.data.map { it[Keys.TIMER_MINUTES] ?: 5 }
+    val snoozeMinutes: Flow<Int> = context.dataStore.data.map { it[Keys.SNOOZE_MINUTES] ?: 10 }
     val onboardingDone: Flow<Boolean> = context.dataStore.data.map { it[Keys.ONBOARDING_DONE] ?: false }
     val darkMode: Flow<Int> = context.dataStore.data.map { it[Keys.DARK_MODE] ?: 0 }
     val showEditButton: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_EDIT_BUTTON] ?: false }
 
     suspend fun setTimerMinutes(minutes: Int) {
         context.dataStore.edit { it[Keys.TIMER_MINUTES] = minutes }
+    }
+
+    suspend fun setSnoozeMinutes(minutes: Int) {
+        context.dataStore.edit { it[Keys.SNOOZE_MINUTES] = minutes }
     }
 
     suspend fun setShowEditButton(enabled: Boolean) {

@@ -1,5 +1,8 @@
 package com.shots.ui.settings
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -7,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -49,13 +53,19 @@ fun SettingsScreen(onBack: () -> Unit) {
     val app = context.applicationContext as ShotsApp
 
     val timerMinutes by prefs.timerMinutes.collectAsState(initial = 5)
+    val snoozeMinutes by prefs.snoozeMinutes.collectAsState(initial = 10)
     val darkMode by prefs.darkMode.collectAsState(initial = 0)
     val showEditButton by prefs.showEditButton.collectAsState(initial = false)
 
     var sliderValue by remember { mutableFloatStateOf(timerMinutes.toFloat()) }
+    var snoozeSlider by remember { mutableFloatStateOf(snoozeMinutes.toFloat()) }
 
     LaunchedEffect(timerMinutes) {
         sliderValue = timerMinutes.toFloat()
+    }
+
+    LaunchedEffect(snoozeMinutes) {
+        snoozeSlider = snoozeMinutes.toFloat()
     }
 
     val themeOptions = listOf("System", "Dark", "Light")
@@ -119,6 +129,28 @@ fun SettingsScreen(onBack: () -> Unit) {
                         activeTrackColor = MaterialTheme.colorScheme.primary
                     )
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Snooze: ${snoozeSlider.toInt()} minutes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Slider(
+                    value = snoozeSlider,
+                    onValueChange = { snoozeSlider = it },
+                    onValueChangeFinished = {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            prefs.setSnoozeMinutes(snoozeSlider.toInt())
+                            app.trackSettingChanged("snooze_minutes", snoozeSlider.toInt())
+                        }
+                    },
+                    valueRange = 1f..60f,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary
+                    )
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -152,36 +184,6 @@ fun SettingsScreen(onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             ShotsCard {
-                val whitelisted = remember { com.shots.util.BatteryOptHelper.isWhitelisted(context) }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Background Status",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (whitelisted) "Running unrestricted"
-                            else "Tap Fix to keep detection alive",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                    if (!whitelisted) {
-                        androidx.compose.material3.Button(onClick = {
-                            com.shots.util.BatteryOptHelper.requestWhitelist(context)
-                        }) { Text("Fix") }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            ShotsCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -207,6 +209,40 @@ fun SettingsScreen(onBack: () -> Unit) {
                             }
                             app.trackSettingChanged("edit_button", enabled)
                         }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ShotsCard(
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.supportkori.com/luminex"))
+                    context.startActivity(intent)
+                }
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Support Shots",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Donate to keep the app alive",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = "Open support link",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

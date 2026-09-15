@@ -20,6 +20,9 @@ interface ScreenshotDao {
     @Query("SELECT * FROM screenshots WHERE status = 'pending' AND scheduledDeletionAt > 0 ORDER BY scheduledDeletionAt ASC")
     suspend fun getPendingScheduledOnce(): List<Screenshot>
 
+    @Query("SELECT * FROM screenshots WHERE status = 'snoozed' AND scheduledDeletionAt > 0 ORDER BY scheduledDeletionAt ASC")
+    suspend fun getSnoozedScheduledOnce(): List<Screenshot>
+
     @Insert
     suspend fun insert(screenshot: Screenshot): Long
 

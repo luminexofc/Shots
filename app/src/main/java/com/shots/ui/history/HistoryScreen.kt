@@ -78,11 +78,12 @@ fun HistoryScreen(onBack: () -> Unit) {
     val allScreenshots by db.screenshotDao().getAll().collectAsState(initial = emptyList())
 
     var selectedFilter by remember { mutableStateOf("All") }
-    val filters = listOf("All", "Kept", "Pending", "Deleted")
+    val filters = listOf("All", "Kept", "Pending", "Snoozed", "Deleted")
 
     val filteredScreenshots = when (selectedFilter) {
         "Kept" -> allScreenshots.filter { it.status == "kept" }
         "Pending" -> allScreenshots.filter { it.status == "pending" }
+        "Snoozed" -> allScreenshots.filter { it.status == "snoozed" }
         "Deleted" -> allScreenshots.filter { it.status == "deleted" }
         else -> allScreenshots
     }
@@ -152,22 +153,29 @@ fun HistoryScreen(onBack: () -> Unit) {
             } else {
                 LazyColumn {
                     items(filteredScreenshots) { screenshot ->
-                        val isTimed = screenshot.status == "pending" && screenshot.scheduledDeletionAt > 0
+                        val isPending = screenshot.status == "pending" && screenshot.scheduledDeletionAt > 0
+                        val isSnoozed = screenshot.status == "snoozed" && screenshot.scheduledDeletionAt > 0
+                        val isTimed = isPending || isSnoozed
                         ScreenshotItem(
                             screenshot = screenshot,
                             countdown = if (isTimed) formatCountdown(screenshot.scheduledDeletionAt) else null,
+                            countdownLabel = if (isSnoozed) "Reminds" else "Deletes",
                             onCancel = if (isTimed) {
                                 {
                                     scope.launch {
                                         withContext(Dispatchers.IO) {
-                                            TimerAlarmScheduler.cancel(context, screenshot.id)
+                                            if (isSnoozed) {
+                                                TimerAlarmScheduler.cancelSnooze(context, screenshot.path)
+                                            } else {
+                                                TimerAlarmScheduler.cancel(context, screenshot.id)
+                                            }
                                             db.screenshotDao().getByPath(screenshot.path)?.let {
                                                 db.screenshotDao().update(
                                                     it.copy(status = "kept", scheduledDeletionAt = 0L)
                                                 )
                                             }
                                         }
-                                        app.trackScreenshotAction("timer_cancelled")
+                                        app.trackScreenshotAction(if (isSnoozed) "snooze_cancelled" else "timer_cancelled")
                                     }
                                 }
                             } else null,
@@ -180,12 +188,16 @@ fun HistoryScreen(onBack: () -> Unit) {
                                                 val base = maxOf(row.scheduledDeletionAt, System.currentTimeMillis())
                                                 val next = base + 15 * 60_000L
                                                 db.screenshotDao().update(
-                                                    row.copy(status = "pending", scheduledDeletionAt = next)
+                                                    row.copy(status = row.status, scheduledDeletionAt = next)
                                                 )
-                                                TimerAlarmScheduler.schedule(context, row.path, row.id, next)
+                                                if (row.status == "snoozed") {
+                                                    TimerAlarmScheduler.snoozeAt(context, row.path, next)
+                                                } else {
+                                                    TimerAlarmScheduler.schedule(context, row.path, row.id, next)
+                                                }
                                             }
                                         }
-                                        app.trackScreenshotAction("timer_extended")
+                                        app.trackScreenshotAction(if (isSnoozed) "snooze_extended" else "timer_extended")
                                     }
                                 }
                             } else null,
@@ -214,6 +226,7 @@ fun HistoryScreen(onBack: () -> Unit) {
 private fun ScreenshotItem(
     screenshot: Screenshot,
     countdown: String?,
+    countdownLabel: String = "Deletes",
     onCancel: (() -> Unit)?,
     onExtend: (() -> Unit)?,
     onClick: () -> Unit
@@ -223,6 +236,7 @@ private fun ScreenshotItem(
         "kept" -> MaterialTheme.colorScheme.primary
         "deleted" -> MaterialTheme.colorScheme.error
         "pending" -> MaterialTheme.colorScheme.tertiary
+        "snoozed" -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.secondary
     }
 
@@ -281,7 +295,7 @@ private fun ScreenshotItem(
             )
             if (countdown != null) {
                 Text(
-                    text = "Deletes $countdown",
+                    text = "$countdownLabel $countdown",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary
                 )

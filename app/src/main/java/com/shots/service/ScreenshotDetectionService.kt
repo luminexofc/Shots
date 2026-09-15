@@ -17,7 +17,6 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
 import com.shots.MainActivity
-import com.shots.ScreenshotOverlayActivity
 import com.shots.ShotsApp
 import com.shots.util.DeleteSuppressor
 import kotlinx.coroutines.CoroutineScope
@@ -55,11 +54,19 @@ class ScreenshotDetectionService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         Log.d(TAG, "Task removed, scheduling restart")
         scheduleRestart(2000)
+        try {
+            sendBroadcast(Intent(this, com.shots.receiver.BootReceiver::class.java).apply {
+                action = com.shots.receiver.BootReceiver.ACTION_RESTART_DETECTION
+            })
+        } catch (e: Exception) {
+            Log.e(TAG, "Restart broadcast failed", e)
+        }
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        OverlayController.hide()
         contentObserver?.let {
             contentResolver.unregisterContentObserver(it)
         }
@@ -88,11 +95,13 @@ class ScreenshotDetectionService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            am.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + delayMillis,
-                pendingIntent
-            )
+            val triggerAt = System.currentTimeMillis() + delayMillis
+            try {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+            } catch (e: SecurityException) {
+                Log.w(TAG, "Exact restart rejected, falling back to inexact", e)
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to schedule restart", e)
         }
@@ -133,8 +142,11 @@ class ScreenshotDetectionService : Service() {
         val lowerPath = path.lowercase()
         val fileName = lowerPath.substringAfterLast('/')
         return lowerPath.contains("/screenshots/") ||
+                lowerPath.contains("/screenshot/") ||
                 lowerPath.contains("screen_shot") ||
                 lowerPath.contains("screen-shot") ||
+                lowerPath.contains("screencapture") ||
+                lowerPath.contains("screen capture") ||
                 fileName.contains("screenshot")
     }
 
@@ -218,16 +230,7 @@ class ScreenshotDetectionService : Service() {
     }
 
     private fun launchOverlay(screenshotPath: String) {
-        val overlayIntent = Intent(this, ScreenshotOverlayActivity::class.java).apply {
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                        Intent.FLAG_ACTIVITY_NO_ANIMATION
-            )
-            putExtra("screenshot_path", screenshotPath)
-        }
-        startActivity(overlayIntent)
+        OverlayController.show(this, screenshotPath)
     }
 
     companion object {

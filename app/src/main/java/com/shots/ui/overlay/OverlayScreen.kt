@@ -67,6 +67,7 @@ fun OverlayScreen(
     val coroutineScope = rememberCoroutineScope()
     val app = context.applicationContext as ShotsApp
     val savedMinutes by prefs.timerMinutes.collectAsState(initial = 5)
+    val snoozeAfter by prefs.snoozeMinutes.collectAsState(initial = 10)
     val showEdit by prefs.showEditButton.collectAsState(initial = false)
 
     fun undoDelete() {
@@ -86,11 +87,47 @@ fun OverlayScreen(
         }
     }
 
+    fun confirmDeleteNow() {
+        val id = undoRowId
+        undoActive = false
+        coroutineScope.launch {
+            DeleteSuppressor.suppress(screenshotPath)
+            val deleted = withContext(Dispatchers.IO) {
+                TimerAlarmScheduler.cancel(context, id)
+                MediaStoreUtils.deleteScreenshot(context, screenshotPath)
+            }
+            if (deleted) {
+                withContext(Dispatchers.IO) {
+                    db.screenshotDao().getByPath(screenshotPath)?.let {
+                        db.screenshotDao().updateStatus(it.id, "deleted")
+                    }
+                }
+                app.trackScreenshotAction("delete_confirmed")
+                withContext(Dispatchers.Main) { onDismiss() }
+            } else {
+                val rowId = withContext(Dispatchers.IO) {
+                    db.screenshotDao().getByPath(screenshotPath)?.let {
+                        db.screenshotDao().updateStatus(it.id, "pending")
+                        it.id
+                    } ?: id
+                }
+                app.trackScreenshotAction("delete_confirm_dialog")
+                withContext(Dispatchers.Main) {
+                    onDismiss()
+                    if (rowId > 0) {
+                        com.shots.ConfirmDeleteActivity.launch(context, screenshotPath, rowId)
+                    }
+                }
+            }
+        }
+    }
+
     fun scheduleMinutes(minutes: Int) {
         coroutineScope.launch {
             val scheduledAt = System.currentTimeMillis() + minutes * 60_000L
             val rowId = withContext(Dispatchers.IO) {
                 val existing = db.screenshotDao().getByPath(screenshotPath)
+                TimerAlarmScheduler.cancelSnooze(context, screenshotPath)
                 if (existing != null) {
                     db.screenshotDao().update(
                         existing.copy(
@@ -168,6 +205,7 @@ fun OverlayScreen(
                                 withContext(Dispatchers.IO) {
                                     // If a timer was already scheduled for this path, cancel it
                                     val existing = db.screenshotDao().getByPath(screenshotPath)
+                                    TimerAlarmScheduler.cancelSnooze(context, screenshotPath)
                                     if (existing != null) {
                                         TimerAlarmScheduler.cancel(context, existing.id)
                                         db.screenshotDao().update(
@@ -317,14 +355,42 @@ fun OverlayScreen(
                     ) {
                         TextButton(
                             onClick = {
-                                TimerAlarmScheduler.snooze(context, screenshotPath)
-                                app.trackScreenshotAction("snoozed")
-                                onDismiss()
+                                coroutineScope.launch {
+                                    val remindAt = System.currentTimeMillis() + snoozeAfter * 60_000L
+                                    withContext(Dispatchers.IO) {
+                                        val existing = db.screenshotDao().getByPath(screenshotPath)
+                                        if (existing != null) {
+                                            TimerAlarmScheduler.cancel(context, existing.id)
+                                            db.screenshotDao().update(
+                                                existing.copy(
+                                                    status = "snoozed",
+                                                    scheduledDeletionAt = remindAt,
+                                                    fileSizeBytes = fileSize(screenshotPath)
+                                                )
+                                            )
+                                        } else {
+                                            db.screenshotDao().insert(
+                                                Screenshot(
+                                                    path = screenshotPath,
+                                                    timestamp = nowStamp(),
+                                                    status = "snoozed",
+                                                    scheduledDeletionAt = remindAt,
+                                                    fileSizeBytes = fileSize(screenshotPath)
+                                                )
+                                            )
+                                        }
+                                    }
+                                    TimerAlarmScheduler.snooze(context, screenshotPath, snoozeAfter)
+                                    app.trackScreenshotAction("snoozed")
+                                    withContext(Dispatchers.Main) {
+                                        onDismiss()
+                                    }
+                                }
                             },
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                "Snooze 10 min",
+                                "Snooze ${snoozeAfter}m",
                                 color = MaterialTheme.colorScheme.secondary
                             )
                         }
@@ -376,6 +442,14 @@ fun OverlayScreen(
                 confirmButton = {
                     TextButton(onClick = { undoDelete() }) {
                         Text("Undo")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmDeleteNow() }) {
+                        Text(
+                            "Confirm",
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surface

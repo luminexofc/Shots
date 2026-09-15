@@ -28,3 +28,7 @@ Thumbs.db
 *.jks
 *.keystore
 keystore.properties
+
+# Local build logs
+build-debug.log
+*.log
