@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
@@ -97,6 +98,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     var overlayGranted by remember { mutableStateOf(false) }
     var notificationGranted by remember { mutableStateOf(false) }
     var allFilesGranted by remember { mutableStateOf(false) }
+    var batteryWhitelisted by remember { mutableStateOf(false) }
 
     val storageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -122,6 +124,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         allFilesGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
         } else true
+        batteryWhitelisted = com.shots.util.BatteryOptHelper.isWhitelisted(context)
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -157,6 +160,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     overlayGranted = overlayGranted,
                     notificationGranted = notificationGranted,
                     allFilesGranted = allFilesGranted,
+                    batteryWhitelisted = batteryWhitelisted,
                     onStorageClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
@@ -172,6 +176,9 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     },
                     onAllFilesClick = {
                         openAllFilesSettings(context)
+                    },
+                    onBatteryClick = {
+                        com.shots.util.BatteryOptHelper.requestWhitelist(context)
                     },
                     onNotificationClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -281,8 +288,9 @@ private fun WelcomePage() {
 @Composable
 private fun PermissionsPage(
     storageGranted: Boolean, overlayGranted: Boolean, notificationGranted: Boolean,
-    allFilesGranted: Boolean,
+    allFilesGranted: Boolean, batteryWhitelisted: Boolean,
     onStorageClick: () -> Unit, onOverlayClick: () -> Unit, onAllFilesClick: () -> Unit,
+    onBatteryClick: () -> Unit,
     onNotificationClick: () -> Unit
 ) {
     Column(
@@ -299,6 +307,8 @@ private fun PermissionsPage(
         PermissionItem(icon = Icons.Default.Visibility, title = "Display Over Apps", granted = overlayGranted, onClick = onOverlayClick)
         Spacer(modifier = Modifier.height(16.dp))
         PermissionItem(icon = Icons.Default.Delete, title = "All Files Access", granted = allFilesGranted, onClick = onAllFilesClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        PermissionItem(icon = Icons.Default.BatteryChargingFull, title = "Run in Background", granted = batteryWhitelisted, onClick = onBatteryClick)
         Spacer(modifier = Modifier.height(16.dp))
         PermissionItem(icon = Icons.Default.Notifications, title = "Notifications", granted = notificationGranted, onClick = onNotificationClick)
     }

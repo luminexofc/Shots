@@ -9,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mixpanel.android.mpmetrics.MixpanelAPI
 import com.shots.worker.AutoDeleteWorker
+import com.shots.worker.ServiceRestartWorker
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -27,18 +28,19 @@ class ShotsApp : Application() {
         }
         mixpanel.registerSuperProperties(props)
         mixpanel.flush()
-        scheduleAutoDelete()
+        startDetectionService(this)
+        schedule<AutoDeleteWorker>("auto_delete")
+        schedule<ServiceRestartWorker>(ServiceRestartWorker.WORK_NAME)
     }
 
-    private fun scheduleAutoDelete() {
-        val workRequest = PeriodicWorkRequestBuilder<AutoDeleteWorker>(
+    private inline fun <reified W : androidx.work.ListenableWorker> schedule(name: String) {
+        val req = PeriodicWorkRequestBuilder<W>(
             15, TimeUnit.MINUTES
         ).build()
-
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "auto_delete",
+            name,
             ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
+            req
         )
     }
 

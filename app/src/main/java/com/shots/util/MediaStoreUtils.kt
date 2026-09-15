@@ -34,13 +34,11 @@ object MediaStoreUtils {
 
     fun deleteScreenshot(context: Context, path: String): Boolean {
         // Real path after staging rename — delete this one primarily
-        val realPath = cleanPath(path)
-        val file = File(realPath)
-        val filename = file.name
+        val targets = listOf(cleanPath(path), path).distinct()
 
         // Delete both variants to be thorough (original + cleaned);
         // one of them is usually already nonexistent.
-        for (target in listOf(realPath, path).distinct()) {
+        for (target in targets) {
             val targetFile = File(target)
             if (targetFile.exists()) {
                 if (targetFile.delete()) {
@@ -50,7 +48,7 @@ object MediaStoreUtils {
                 }
             }
             // Try MediaStore by full path
-            val uriByPath = queryByPath(context.contentResolver, target)
+            val uriByPath = query(context.contentResolver, MediaStore.Images.Media.DATA, target)
             if (uriByPath != null) {
                 try {
                     context.contentResolver.delete(uriByPath, null, null)
@@ -60,7 +58,7 @@ object MediaStoreUtils {
                 }
             }
             // Try MediaStore by display name
-            val uriByName = queryByName(context.contentResolver, File(target).name)
+            val uriByName = query(context.contentResolver, MediaStore.Images.Media.DISPLAY_NAME, File(target).name)
             if (uriByName != null) {
                 try {
                     context.contentResolver.delete(uriByName, null, null)
@@ -72,10 +70,10 @@ object MediaStoreUtils {
         }
 
         // Verification: file truly gone AND no MediaStore row left (under any variant)
-        val fileGone = listOf(realPath, path).distinct().none { File(it).exists() }
-        val rowGone = listOf(realPath, path).distinct().all { p ->
-            queryByPath(context.contentResolver, p) == null &&
-                    queryByName(context.contentResolver, File(p).name) == null
+        val fileGone = targets.none { File(it).exists() }
+        val rowGone = targets.all { p ->
+            query(context.contentResolver, MediaStore.Images.Media.DATA, p) == null &&
+                    query(context.contentResolver, MediaStore.Images.Media.DISPLAY_NAME, File(p).name) == null
         }
 
         if (fileGone && rowGone) {
@@ -104,27 +102,24 @@ object MediaStoreUtils {
     }
 
     fun getUriForScreenshot(context: Context, path: String): Uri? {
-        val realPath = cleanPath(path)
-        val candidates = listOf(realPath, path).distinct()
+        val candidates = listOf(cleanPath(path), path).distinct()
 
         // Prefer MediaStore content URI (works for thumbnails + ACTION_VIEW)
         for (candidate in candidates) {
-            val uriByPath = queryByPath(context.contentResolver, candidate)
-            if (uriByPath != null) return uriByPath
+            query(context.contentResolver, MediaStore.Images.Media.DATA, candidate)?.let { return it }
         }
         for (candidate in candidates) {
-            val uriByName = queryByName(context.contentResolver, File(candidate).name)
-            if (uriByName != null) return uriByName
+            query(context.contentResolver, MediaStore.Images.Media.DISPLAY_NAME, File(candidate).name)?.let { return it }
         }
 
         // Fallback: file URI (only works if file still exists)
         return candidates.firstOrNull { File(it).exists() }?.let { Uri.fromFile(File(it)) }
     }
 
-    private fun queryByPath(contentResolver: ContentResolver, path: String): Uri? {
+    private fun query(contentResolver: ContentResolver, column: String, value: String): Uri? {
         val projection = arrayOf(MediaStore.Images.Media._ID)
-        val selection = "${MediaStore.Images.Media.DATA} = ?"
-        val selectionArgs = arrayOf(path)
+        val selection = "$column = ?"
+        val selectionArgs = arrayOf(value)
 
         return try {
             contentResolver.query(
@@ -145,36 +140,7 @@ object MediaStoreUtils {
                 } else null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "queryByPath failed: $path", e)
-            null
-        }
-    }
-
-    private fun queryByName(contentResolver: ContentResolver, filename: String): Uri? {
-        val projection = arrayOf(MediaStore.Images.Media._ID)
-        val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ?"
-        val selectionArgs = arrayOf(filename)
-
-        return try {
-            contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idIndex = cursor.getColumnIndex(MediaStore.Images.Media._ID)
-                    if (idIndex >= 0) {
-                        ContentUris.withAppendedId(
-                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                            cursor.getLong(idIndex)
-                        )
-                    } else null
-                } else null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "queryByName failed: $filename", e)
+            Log.e(TAG, "query failed: $column=$value", e)
             null
         }
     }

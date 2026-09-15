@@ -113,7 +113,7 @@ fun OverlayScreen(
                                         db.screenshotDao().insert(
                                             Screenshot(
                                                 path = screenshotPath,
-                                                timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                                timestamp = nowStamp(),
                                                 status = "kept"
                                             )
                                         )
@@ -147,15 +147,14 @@ fun OverlayScreen(
                                 }
                                 if (actuallyDeleted) {
                                     withContext(Dispatchers.IO) {
-                                        val latest = db.screenshotDao().getAllOnce()
-                                            .firstOrNull { it.path == screenshotPath }
+                                        val latest = db.screenshotDao().getByPath(screenshotPath)
                                         if (latest != null) {
                                             db.screenshotDao().updateStatus(latest.id, "deleted")
                                         } else {
                                             db.screenshotDao().insert(
                                                 Screenshot(
                                                     path = screenshotPath,
-                                                    timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                                    timestamp = nowStamp(),
                                                     status = "deleted"
                                                 )
                                             )
@@ -167,8 +166,7 @@ fun OverlayScreen(
                                     // Direct delete blocked (no All Files Access) —
                                     // use the system confirmation dialog, which always works
                                     val rowId = withContext(Dispatchers.IO) {
-                                        val existing = db.screenshotDao().getAllOnce()
-                                            .firstOrNull { it.path == screenshotPath }
+                                        val existing = db.screenshotDao().getByPath(screenshotPath)
                                         if (existing != null) {
                                             db.screenshotDao().updateStatus(existing.id, "pending")
                                             existing.id
@@ -176,7 +174,7 @@ fun OverlayScreen(
                                             db.screenshotDao().insert(
                                                 Screenshot(
                                                     path = screenshotPath,
-                                                    timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                                    timestamp = nowStamp(),
                                                     status = "pending"
                                                 )
                                             )
@@ -247,7 +245,7 @@ fun OverlayScreen(
                                 db.screenshotDao().insert(
                                     Screenshot(
                                         path = screenshotPath,
-                                        timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
+                                        timestamp = nowStamp(),
                                         status = "pending",
                                         scheduledDeletionAt = scheduledAt
                                     )
@@ -265,6 +263,8 @@ fun OverlayScreen(
             )
         }
     }
+
+private fun nowStamp(): String = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
 @Composable
 private fun TimerPickerDialog(

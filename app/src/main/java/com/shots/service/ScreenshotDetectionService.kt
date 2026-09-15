@@ -5,6 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.app.AlarmManager
+import android.content.Context
 import android.content.Intent
 import android.database.ContentObserver
 import android.net.Uri
@@ -34,13 +36,26 @@ class ScreenshotDetectionService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        startForegroundCompat()
         registerScreenshotObserver()
         Log.d(TAG, "Screenshot detection service started")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_RESTART) {
+            Log.d(TAG, "Restart intent received")
+        }
+        if (contentObserver == null) {
+            registerScreenshotObserver()
+        }
+        startForegroundCompat()
         return START_STICKY
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.d(TAG, "Task removed, scheduling restart")
+        scheduleRestart(2000)
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -48,8 +63,39 @@ class ScreenshotDetectionService : Service() {
         contentObserver?.let {
             contentResolver.unregisterContentObserver(it)
         }
+        contentObserver = null
         serviceScope.cancel()
-        Log.d(TAG, "Screenshot detection stopped")
+        Log.d(TAG, "Screenshot detection stopped, scheduling restart")
+        scheduleRestart(2000)
+    }
+
+    private fun startForegroundCompat() {
+        val notification = createNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun scheduleRestart(delayMillis: Long) {
+        try {
+            val restartIntent = Intent(this, ScreenshotDetectionService::class.java).apply {
+                action = ACTION_RESTART
+            }
+            val pendingIntent = PendingIntent.getService(
+                this, 0, restartIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            am.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                System.currentTimeMillis() + delayMillis,
+                pendingIntent
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule restart", e)
+        }
     }
 
     private fun createNotificationChannel() {
@@ -188,5 +234,6 @@ class ScreenshotDetectionService : Service() {
         private const val TAG = "ScreenshotDetection"
         const val CHANNEL_ID = "shots_detection_channel"
         const val NOTIFICATION_ID = 1001
+        const val ACTION_RESTART = "com.shots.action.RESTART_DETECTION"
     }
 }

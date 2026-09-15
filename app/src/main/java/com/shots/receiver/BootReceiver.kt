@@ -9,11 +9,20 @@ import com.shots.util.TimerAlarmScheduler
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.d("BootReceiver", "Boot completed, starting detection service")
-            ShotsApp.startDetectionService(context)
-            // Exact alarms don't survive reboot — reschedule all pending timers
-            TimerAlarmScheduler.rescheduleAll(context)
+        when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_LOCKED_BOOT_COMPLETED,
+            "android.intent.action.QUICKBOOT_POWERON",
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            ACTION_RESTART_DETECTION -> {
+                Log.d("BootReceiver", "Restart event ${intent.action}, starting detection service")
+                ShotsApp.startDetectionService(context)
+                TimerAlarmScheduler.rescheduleAll(context)
+            }
         }
+    }
+
+    companion object {
+        const val ACTION_RESTART_DETECTION = "com.shots.action.RESTART_DETECTION"
     }
 }
