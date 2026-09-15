@@ -50,6 +50,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     val timerMinutes by prefs.timerMinutes.collectAsState(initial = 5)
     val darkMode by prefs.darkMode.collectAsState(initial = 0)
+    val showEditButton by prefs.showEditButton.collectAsState(initial = false)
 
     var sliderValue by remember { mutableFloatStateOf(timerMinutes.toFloat()) }
 
@@ -175,6 +176,38 @@ fun SettingsScreen(onBack: () -> Unit) {
                             com.shots.util.BatteryOptHelper.requestWhitelist(context)
                         }) { Text("Fix") }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ShotsCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Edit Button",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Show system editor shortcut in the popup",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = showEditButton,
+                        onCheckedChange = { enabled ->
+                            CoroutineScope(Dispatchers.IO).launch {
+                                prefs.setShowEditButton(enabled)
+                            }
+                            app.trackSettingChanged("edit_button", enabled)
+                        }
+                    )
                 }
             }
         }

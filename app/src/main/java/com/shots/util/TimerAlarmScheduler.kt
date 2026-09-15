@@ -50,8 +50,42 @@ object TimerAlarmScheduler {
         }
     }
 
-    fun cancel(context: Context, screenshotId: Long) {
+    /**
+     * Snooze: re-notify about this screenshot after delayMin minutes.
+     * Fires SnoozeReceiver which posts a tap-to-review notification
+     * (an alarm cannot start the popup activity directly from background).
+     */
+    fun snooze(context: Context, path: String, delayMin: Int = 10) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        val intent = Intent(context, com.shots.SnoozeReceiver::class.java).apply {
+            putExtra(com.shots.SnoozeReceiver.EXTRA_PATH, path)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            (path.hashCode() xor 0x5eed),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val triggerAt = System.currentTimeMillis() + delayMin * 60_000L
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
+                Log.w(TAG, "Exact alarms not permitted, falling back to inexact for snooze")
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+                return
+            }
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+            Log.d(TAG, "Snooze scheduled in ${delayMin}m for $path")
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Exact alarm rejected, falling back to inexact for snooze", e)
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule snooze", e)
+        }
+    }
+
+    fun cancel(context: Context, screenshotId: Long) {        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, TimerDeleteReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             context,

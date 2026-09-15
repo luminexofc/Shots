@@ -67,6 +67,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".SnoozeReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".receiver.BootReceiver"
             android:exported="true">
             <intent-filter>

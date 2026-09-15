@@ -16,5 +16,6 @@ data class Screenshot(
     val path: String,
     val timestamp: String,
     val status: String,
-    val scheduledDeletionAt: Long = 0L
+    val scheduledDeletionAt: Long = 0L,
+    val fileSizeBytes: Long = 0L
 )

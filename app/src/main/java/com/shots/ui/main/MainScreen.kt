@@ -60,6 +60,7 @@ fun MainScreen() {
     val pendingCount = allScreenshots.count { it.status == "pending" }
     val keptCount = allScreenshots.count { it.status == "kept" }
     val deletedCount = allScreenshots.count { it.status == "deleted" }
+    val freedBytes = allScreenshots.filter { it.status == "deleted" }.sumOf { it.fileSizeBytes }
 
     var showHowItWorks by remember { mutableStateOf(false) }
 
@@ -160,6 +161,16 @@ fun MainScreen() {
                         modifier = Modifier.weight(1f)
                     )
                 }
+                if (freedBytes > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${formatBytes(freedBytes)} freed",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -228,9 +239,14 @@ fun MainScreen() {
     }
 }
 
+private fun formatBytes(bytes: Long): String {
+    if (bytes < 1024 * 1024L) return "${bytes / 1024L} KB"
+    val mb = bytes / (1024f * 1024f)
+    return if (mb < 1024) "%.1f MB".format(mb) else "%.2f GB".format(mb / 1024)
+}
+
 @Composable
-private fun StatItem(count: Int, label: String, modifier: Modifier = Modifier) {
-    Column(
+private fun StatItem(count: Int, label: String, modifier: Modifier = Modifier) {    Column(
         modifier = modifier.padding(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

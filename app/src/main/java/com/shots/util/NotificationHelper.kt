@@ -12,6 +12,42 @@ import com.shots.ConfirmDeleteActivity
 object NotificationHelper {
 
     private const val CONFIRM_CHANNEL_ID = "shots_confirm_delete"
+    private const val SNOOZE_CHANNEL_ID = "shots_snooze"
+
+    fun showSnoozeNotification(context: Context, path: String) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                SNOOZE_CHANNEL_ID,
+                "Screenshot Reminders",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            nm.createNotificationChannel(channel)
+        }
+
+        val overlayIntent = Intent(context, com.shots.ScreenshotOverlayActivity::class.java).apply {
+            putExtra("screenshot_path", path)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val overlayPending = PendingIntent.getActivity(
+            context,
+            (path.hashCode() xor 0x2002),
+            overlayIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val filename = path.substringAfterLast('/')
+        val notification = NotificationCompat.Builder(context, SNOOZE_CHANNEL_ID)
+            .setContentTitle("Screenshot still waiting")
+            .setContentText("Tap to decide what to do with \"$filename\"")
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setContentIntent(overlayPending)
+            .setAutoCancel(true)
+            .build()
+
+        nm.notify((path.hashCode() % 100000), notification)
+    }
 
     fun showConfirmDeleteNotification(context: Context, path: String, screenshotId: Long) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

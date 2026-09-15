@@ -2,8 +2,11 @@ package com.shots.ui.overlay
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +21,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,11 +43,15 @@ import com.shots.util.DeleteSuppressor
 import com.shots.util.MediaStoreUtils
 import com.shots.util.TimerAlarmScheduler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+private const val UNDO_WINDOW_MS = 5000L
 
 @Composable
 fun OverlayScreen(
@@ -54,8 +62,64 @@ fun OverlayScreen(
     val db = ScreenshotDatabase.getInstance(context)
     val prefs = PreferencesManager(context)
     var showTimerDialog by remember { mutableStateOf(false) }
+    var undoActive by remember { mutableStateOf(false) }
+    var undoRowId by remember { mutableStateOf(-1L) }
     val coroutineScope = rememberCoroutineScope()
     val app = context.applicationContext as ShotsApp
+    val savedMinutes by prefs.timerMinutes.collectAsState(initial = 5)
+    val showEdit by prefs.showEditButton.collectAsState(initial = false)
+
+    fun undoDelete() {
+        val id = undoRowId
+        undoActive = false
+        coroutineScope.launch {
+            withContext(Dispatchers.IO) {
+                TimerAlarmScheduler.cancel(context, id)
+                db.screenshotDao().getByPath(screenshotPath)?.let {
+                    db.screenshotDao().update(it.copy(status = "kept", scheduledDeletionAt = 0L))
+                }
+            }
+            app.trackScreenshotAction("undo")
+            withContext(Dispatchers.Main) {
+                onDismiss()
+            }
+        }
+    }
+
+    fun scheduleMinutes(minutes: Int) {
+        coroutineScope.launch {
+            val scheduledAt = System.currentTimeMillis() + minutes * 60_000L
+            val rowId = withContext(Dispatchers.IO) {
+                val existing = db.screenshotDao().getByPath(screenshotPath)
+                if (existing != null) {
+                    db.screenshotDao().update(
+                        existing.copy(
+                            status = "pending",
+                            scheduledDeletionAt = scheduledAt,
+                            fileSizeBytes = fileSize(screenshotPath)
+                        )
+                    )
+                    existing.id
+                } else {
+                    db.screenshotDao().insert(
+                        Screenshot(
+                            path = screenshotPath,
+                            timestamp = nowStamp(),
+                            status = "pending",
+                            scheduledDeletionAt = scheduledAt,
+                            fileSizeBytes = fileSize(screenshotPath)
+                        )
+                    )
+                }
+            }
+            // Exact alarm — fires precisely even in Doze mode
+            TimerAlarmScheduler.schedule(context, screenshotPath, rowId, scheduledAt)
+            app.trackScreenshotAction("timer_set")
+            withContext(Dispatchers.Main) {
+                onDismiss()
+            }
+        }
+    }
 
     // No full-screen scrim — tapping outside the card dismisses.
     // The window itself is translucent (Theme.Shots.Overlay).
@@ -107,14 +171,15 @@ fun OverlayScreen(
                                     if (existing != null) {
                                         TimerAlarmScheduler.cancel(context, existing.id)
                                         db.screenshotDao().update(
-                                            existing.copy(status = "kept", scheduledDeletionAt = 0L)
+                                            existing.copy(status = "kept", scheduledDeletionAt = 0L, fileSizeBytes = fileSize(screenshotPath))
                                         )
                                     } else {
                                         db.screenshotDao().insert(
                                             Screenshot(
                                                 path = screenshotPath,
                                                 timestamp = nowStamp(),
-                                                status = "kept"
+                                                status = "kept",
+                                                fileSizeBytes = fileSize(screenshotPath)
                                             )
                                         )
                                     }
@@ -140,54 +205,34 @@ fun OverlayScreen(
                     Button(
                         onClick = {
                             coroutineScope.launch {
-                                // Suppress popup for our own delete (instant, no race)
+                                // Suppress popup for our own delete (no race)
                                 DeleteSuppressor.suppress(screenshotPath)
-                                val actuallyDeleted = withContext(Dispatchers.IO) {
-                                    MediaStoreUtils.deleteScreenshot(context, screenshotPath)
-                                }
-                                if (actuallyDeleted) {
-                                    withContext(Dispatchers.IO) {
-                                        val latest = db.screenshotDao().getByPath(screenshotPath)
-                                        if (latest != null) {
-                                            db.screenshotDao().updateStatus(latest.id, "deleted")
-                                        } else {
-                                            db.screenshotDao().insert(
-                                                Screenshot(
-                                                    path = screenshotPath,
-                                                    timestamp = nowStamp(),
-                                                    status = "deleted"
-                                                )
+                                // Delayed delete: receiver executes in 5s unless undone
+                                val fireAt = System.currentTimeMillis() + UNDO_WINDOW_MS
+                                val rowId = withContext(Dispatchers.IO) {
+                                    val existing = db.screenshotDao().getByPath(screenshotPath)
+                                    if (existing != null) {
+                                        TimerAlarmScheduler.cancel(context, existing.id)
+                                        db.screenshotDao().update(
+                                            existing.copy(status = "pending", scheduledDeletionAt = fireAt, fileSizeBytes = fileSize(screenshotPath))
+                                        )
+                                        existing.id
+                                    } else {
+                                        db.screenshotDao().insert(
+                                            Screenshot(
+                                                path = screenshotPath,
+                                                timestamp = nowStamp(),
+                                                status = "pending",
+                                                scheduledDeletionAt = fireAt,
+                                                fileSizeBytes = fileSize(screenshotPath)
                                             )
-                                        }
-                                    }
-                                    app.trackScreenshotAction("deleted")
-                                    withContext(Dispatchers.Main) { onDismiss() }
-                                } else {
-                                    // Direct delete blocked (no All Files Access) —
-                                    // use the system confirmation dialog, which always works
-                                    val rowId = withContext(Dispatchers.IO) {
-                                        val existing = db.screenshotDao().getByPath(screenshotPath)
-                                        if (existing != null) {
-                                            db.screenshotDao().updateStatus(existing.id, "pending")
-                                            existing.id
-                                        } else {
-                                            db.screenshotDao().insert(
-                                                Screenshot(
-                                                    path = screenshotPath,
-                                                    timestamp = nowStamp(),
-                                                    status = "pending"
-                                                )
-                                            )
-                                        }
-                                    }
-                                    app.trackScreenshotAction("delete_confirm_dialog")
-                                    withContext(Dispatchers.Main) {
-                                        onDismiss()
-                                        if (rowId > 0) {
-                                            com.shots.ConfirmDeleteActivity.launch(context, screenshotPath, rowId)
-                                        }
+                                        )
                                     }
                                 }
+                                TimerAlarmScheduler.schedule(context, screenshotPath, rowId, fireAt)
+                                undoRowId = rowId
+                                undoActive = true
+                                app.trackScreenshotAction("deleted")
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -202,6 +247,60 @@ fun OverlayScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val presets = listOf(
+                            "$savedMinutes m" to savedMinutes,
+                            "1 h" to 60,
+                            "1 d" to 1440
+                        )
+                        presets.forEach { (label, minutes) ->
+                            OutlinedButton(
+                                onClick = { scheduleMinutes(minutes) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(vertical = 4.dp)
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (showEdit) {
+                        OutlinedButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    try {
+                                        val uri = withContext(Dispatchers.IO) {
+                                            MediaStoreUtils.getUriForScreenshot(context, screenshotPath)
+                                        }
+                                        if (uri != null) {
+                                            val editIntent = android.content.Intent(
+                                                android.content.Intent.ACTION_EDIT
+                                            ).apply {
+                                                setDataAndType(uri, "image/*")
+                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(editIntent)
+                                            app.trackScreenshotAction("edit_opened")
+                                        }
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Edit", modifier = Modifier.padding(vertical = 4.dp))
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
                     OutlinedButton(
                         onClick = { showTimerDialog = true },
                         modifier = Modifier.fillMaxWidth(),
@@ -212,14 +311,35 @@ fun OverlayScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    TextButton(onClick = {
-                        app.trackScreenshotAction("skipped")
-                        onDismiss()
-                    }) {
-                        Text(
-                            "Skip",
-                            color = MaterialTheme.colorScheme.secondary
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextButton(
+                            onClick = {
+                                TimerAlarmScheduler.snooze(context, screenshotPath)
+                                app.trackScreenshotAction("snoozed")
+                                onDismiss()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                "Snooze 10 min",
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                app.trackScreenshotAction("skipped")
+                                onDismiss()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                "Skip",
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
                     }
                 }
             }
@@ -228,41 +348,42 @@ fun OverlayScreen(
         if (showTimerDialog) {
             TimerPickerDialog(
                 onDismiss = { showTimerDialog = false },
-                onTimerSelected = { minutes ->
-                    coroutineScope.launch {
-                        val scheduledAt = System.currentTimeMillis() + minutes * 60_000L
-                        val rowId = withContext(Dispatchers.IO) {
-                            val existing = db.screenshotDao().getByPath(screenshotPath)
-                            if (existing != null) {
-                                db.screenshotDao().update(
-                                    existing.copy(
-                                        status = "pending",
-                                        scheduledDeletionAt = scheduledAt
-                                    )
-                                )
-                                existing.id
-                            } else {
-                                db.screenshotDao().insert(
-                                    Screenshot(
-                                        path = screenshotPath,
-                                        timestamp = nowStamp(),
-                                        status = "pending",
-                                        scheduledDeletionAt = scheduledAt
-                                    )
-                                )
-                            }
-                        }
-                        // Exact alarm — fires precisely even in Doze mode
-                        TimerAlarmScheduler.schedule(context, screenshotPath, rowId, scheduledAt)
-                        app.trackScreenshotAction("timer_set")
-                        withContext(Dispatchers.Main) {
-                            onDismiss()
-                        }
+                onTimerSelected = { minutes -> scheduleMinutes(minutes) }
+            )
+        }
+
+        if (undoActive) {
+            LaunchedEffect(undoRowId) {
+                delay(UNDO_WINDOW_MS + 500)
+                onDismiss()
+            }
+            AlertDialog(
+                onDismissRequest = { },
+                title = {
+                    Text(
+                        "Deleted",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                text = {
+                    Text(
+                        "Screenshot will be permanently deleted.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { undoDelete() }) {
+                        Text("Undo")
                     }
-                }
+                },
+                containerColor = MaterialTheme.colorScheme.surface
             )
         }
     }
+
+private fun fileSize(path: String): Long = try { File(path).length() } catch (_: Exception) { 0L }
 
 private fun nowStamp(): String = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
