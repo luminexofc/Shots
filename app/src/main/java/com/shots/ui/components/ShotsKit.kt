@@ -29,27 +29,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.gestures.awaitPointerEvent
+import androidx.compose.foundation.gestures.awaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.consumePositionChange
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.shots.ui.theme.ShotsTheme
 
-@Composable
-fun ShotsCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(ShotsTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            content()
-        }
-    }
-}
 
 enum class ShotsButtonVariant { Filled, Outline, Text }
 
@@ -111,7 +99,7 @@ fun ShotsText(
     modifier: Modifier = Modifier,
     color: Color = Color.Unspecified,
     style: androidx.compose.ui.text.TextStyle? = null,
-    textAlign: androidx.compose.ui.text.style.TextAlign? = null,
+    textAlign: androidx.compose.ui.text.style.TextAlign = androidx.compose.ui.text.style.TextAlign.Unspecified,
     maxLines: Int = Int.MAX_VALUE
 ) {
     androidx.compose.foundation.text.BasicText(
@@ -119,7 +107,7 @@ fun ShotsText(
         modifier = modifier,
         style = (style ?: ShotsTheme.typography.bodyMedium).merge(
             color = if (color != Color.Unspecified) color else ShotsTheme.colorScheme.onSurface,
-            textAlign = textAlign
+            textAlign = textAlign,
         ),
         maxLines = maxLines
     )

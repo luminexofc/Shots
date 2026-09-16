@@ -2,6 +2,7 @@ package com.shots.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import com.shots.ui.components.ShotsSlider
 import com.shots.ui.components.ShotsSwitch
 import com.shots.ui.components.ShotsText
 import com.shots.ui.components.ShotsTopBar
+import com.shots.ui.theme.ShotsTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState

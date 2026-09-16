@@ -38,6 +38,7 @@ import com.shots.ui.components.ShotsButton
 import com.shots.ui.components.ShotsButtonVariant
 import com.shots.ui.components.ShotsIcon
 import com.shots.ui.components.ShotsText
+import com.shots.ui.theme.ShotsTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect

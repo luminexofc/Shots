@@ -3,6 +3,7 @@ package com.shots.ui.main
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.shots.ui.theme.ShotsTheme
 import com.shots.PermissionsActivity
 import com.shots.data.PreferencesManager
 import com.shots.data.ScreenshotDatabase
@@ -45,7 +47,6 @@ import com.shots.ui.components.ShotsDialog
 import com.shots.ui.components.ShotsIconButton
 import com.shots.ui.components.ShotsTopBar
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
     val context = LocalContext.current
@@ -73,7 +74,7 @@ fun MainScreen() {
                 ShotsIconButton(onClick = {
                     context.startActivity(Intent(context, com.shots.SettingsActivity::class.java))
                 }) {
-                    ShotsShotsIcon(Icons.Default.Settings, contentDescription = "Settings")
+                    ShotsIcon(Icons.Default.Settings, contentDescription = "Settings")
                 }
             }
         )
