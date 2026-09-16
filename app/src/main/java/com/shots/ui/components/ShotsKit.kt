@@ -29,10 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.gestures.awaitPointerEvent
-import androidx.compose.foundation.gestures.awaitPointerEventScope
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.consumePositionChange
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -171,60 +169,78 @@ fun ShotsSlider(
     onValueChangeFinished: (() -> Unit)? = null
 ) {
     val colors = ShotsTheme.colorScheme
-    var dragging by remember { mutableStateOf(false) }
-    Box(
+    androidx.compose.foundation.layout.BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(32.dp)
-            .pointerInput(valueRange) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull() ?: continue
-                        if (event.type == PointerEventType.Press ||
-                            (dragging && event.type == PointerEventType.Move)
-                        ) {
-                            dragging = true
-                            val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                            onValueChange(valueRange.start + fraction * (valueRange.endInclusive - valueRange.start))
-                            change.consumePositionChange()
-                        }
-                        if (event.type == PointerEventType.Release) {
-                            if (dragging) {
-                                dragging = false
-                                onValueChangeFinished?.invoke()
-                            }
-                        }
-                    }
-                }
-            },
-        contentAlignment = Alignment.CenterStart
     ) {
-        val fraction = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+        val widthPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+            maxWidth.toPx()
+        }
+        fun setFromX(x: Float) {
+            val fraction = (x / widthPx).coerceIn(0f, 1f)
+            onValueChange(valueRange.start + fraction * (valueRange.endInclusive - valueRange.start))
+        }
+        var dragValue by remember(valueRange) { mutableStateOf(value) }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(colors.outline)
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(fraction.coerceAtLeast(0.02f))
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(colors.primary)
-        )
-        androidx.compose.foundation.Canvas(
-            modifier = Modifier.fillMaxWidth().height(32.dp)
+                .height(32.dp)
+                .pointerInput(valueRange, widthPx) {
+                    detectTapGestures(
+                        onPress = {
+                            setFromX(it.x)
+                            tryAwaitRelease()
+                            onValueChangeFinished?.invoke()
+                        }
+                    )
+                }
+                .pointerInput(valueRange, widthPx) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragValue = value },
+                        onHorizontalDrag = { _, dragAmount ->
+                            val fraction =
+                                ((dragValue - valueRange.start) / (valueRange.endInclusive - valueRange.start) + dragAmount / widthPx)
+                                    .coerceIn(0f, 1f)
+                            dragValue =
+                                valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                            onValueChange(dragValue)
+                        },
+                        onDragEnd = { onValueChangeFinished?.invoke() }
+                    )
+                },
+            contentAlignment = Alignment.CenterStart
         ) {
-            val cx = fraction * size.width
-            val r = 14.dp.toPx() / 2
-            drawCircle(
-                color = colors.primary,
-                radius = r,
-                center = androidx.compose.ui.geometry.Offset(cx.coerceIn(r, size.width - r), size.height / 2)
+            val fraction =
+                ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(colors.outline)
             )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction.coerceAtLeast(0.02f))
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(colors.primary)
+            )
+            androidx.compose.foundation.Canvas(
+                modifier = Modifier.fillMaxWidth().height(32.dp)
+            ) {
+                val cx = fraction * size.width
+                val r = 14.dp.toPx() / 2
+                drawCircle(
+                    color = colors.primary,
+                    radius = r,
+                    center = androidx.compose.ui.geometry.Offset(
+                        cx.coerceIn(r, size.width - r),
+                        size.height / 2
+                    )
+                )
+            }
         }
     }
 }
