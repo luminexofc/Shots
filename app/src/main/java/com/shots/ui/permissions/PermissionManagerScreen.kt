@@ -8,50 +8,67 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.shots.ui.components.ShotsCard
-import com.shots.ui.theme.ShotsTheme
+import com.slapps.cupertino.CupertinoButton
+import com.slapps.cupertino.CupertinoButtonDefaults
+import com.slapps.cupertino.CupertinoIcon
+import com.slapps.cupertino.CupertinoNavigateBackButton
+import com.slapps.cupertino.CupertinoText
+import com.slapps.cupertino.CupertinoTopAppBar
+import com.slapps.cupertino.ExperimentalCupertinoApi
+import com.slapps.cupertino.icons.CupertinoIcons
+import com.slapps.cupertino.icons.outlined.Bell
+import com.slapps.cupertino.icons.outlined.CheckmarkCircle
+import com.slapps.cupertino.icons.outlined.ChevronForward
+import com.slapps.cupertino.icons.outlined.Gearshape
+import com.slapps.cupertino.icons.outlined.House
+import com.slapps.cupertino.icons.outlined.Lock
+import com.slapps.cupertino.icons.outlined.Play
+import com.slapps.cupertino.section.CupertinoSection
+import com.slapps.cupertino.section.SectionItem
+import com.slapps.cupertino.theme.CupertinoTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun openAllFilesSettings(context: android.content.Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+    try {
+        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+            data = android.net.Uri.parse("package:${context.packageName}")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (_: Exception) {
+        try {
+            context.startActivity(
+                Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Exception) {
+            context.startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = android.net.Uri.parse("package:${context.packageName}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalCupertinoApi::class)
 @Composable
 fun PermissionManagerScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -103,161 +120,142 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
 
     checkPermissions()
 
-    ShotsTheme {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Permissions") },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        titleContentColor = MaterialTheme.colorScheme.onBackground,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onBackground
-                    )
-                )
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
-            ) {
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.PhotoLibrary,
-                        title = "Storage Access",
-                        granted = storageGranted,
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                            } else {
-                                storageLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                            }
-                        }
-                    )
+    Column(modifier = Modifier.fillMaxSize()) {
+        CupertinoTopAppBar(
+            title = { CupertinoText("Permissions") },
+            navigationIcon = {
+                CupertinoNavigateBackButton(onClick = onBack) {
+                    CupertinoText("Back")
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.Visibility,
-                        title = "Display Over Apps",
-                        granted = overlayGranted,
-                        onClick = {
-                            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                                data = android.net.Uri.parse("package:${context.packageName}")
-                            }
-                            context.startActivity(intent)
-                        }
+            }
+        )
+        CupertinoSection(
+            caption = { CupertinoText("Shots needs these to catch and manage screenshots") }
+        ) {
+            SectionItem(
+                leadingContent = {
+                    CupertinoIcon(
+                        imageVector = CupertinoIcons.Outlined.House,
+                        contentDescription = null,
+                        tint = CupertinoTheme.colorScheme.accent
                     )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.Delete,
-                        title = "All Files Access",
-                        granted = allFilesGranted,
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                try {
-                                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                        data = android.net.Uri.parse("package:${context.packageName}")
-                                    }
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    try {
-                                        context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                                    } catch (_: Exception) {
-                                        context.startActivity(
-                                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                data = android.net.Uri.parse("package:${context.packageName}")
-                                            }
-                                        )
-                                    }
+                },
+                trailingContent = {
+                    if (!storageGranted) {
+                        CupertinoButton(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                                } else {
+                                    storageLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
                                 }
-                            }
-                        }
+                            },
+                            colors = CupertinoButtonDefaults.plainButtonColors()
+                        ) { CupertinoText("Grant") }
+                    }
+                },
+                title = { CupertinoText("Storage Access") }
+            )
+            SectionItem(
+                leadingContent = {
+                    CupertinoIcon(
+                        imageVector = CupertinoIcons.Outlined.Play,
+                        contentDescription = null,
+                        tint = CupertinoTheme.colorScheme.accent
                     )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.Notifications,
-                        title = "Notifications",
-                        granted = notificationGranted,
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }
-                        }
+                },
+                trailingContent = {
+                    if (!overlayGranted) {
+                        CupertinoButton(
+                            onClick = {
+                                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                                    data = android.net.Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            },
+                            colors = CupertinoButtonDefaults.plainButtonColors()
+                        ) { CupertinoText("Grant") }
+                    }
+                },
+                title = { CupertinoText("Display Over Apps") }
+            )
+            SectionItem(
+                leadingContent = {
+                    CupertinoIcon(
+                        imageVector = CupertinoIcons.Outlined.Lock,
+                        contentDescription = null,
+                        tint = CupertinoTheme.colorScheme.accent
                     )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.DirectionsRun,
-                        title = "Run in Background",
-                        granted = batteryWhitelisted,
-                        onClick = {
-                            com.shots.util.BatteryOptHelper.requestWhitelist(context)
-                        }
+                },
+                trailingContent = {
+                    if (!allFilesGranted) {
+                        CupertinoButton(
+                            onClick = { openAllFilesSettings(context) },
+                            colors = CupertinoButtonDefaults.plainButtonColors()
+                        ) { CupertinoText("Grant") }
+                    }
+                },
+                title = { CupertinoText("All Files Access") }
+            )
+            SectionItem(
+                leadingContent = {
+                    CupertinoIcon(
+                        imageVector = CupertinoIcons.Outlined.Bell,
+                        contentDescription = null,
+                        tint = CupertinoTheme.colorScheme.accent
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
+                },
+                trailingContent = {
+                    if (!notificationGranted) {
+                        CupertinoButton(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            },
+                            colors = CupertinoButtonDefaults.plainButtonColors()
+                        ) { CupertinoText("Grant") }
+                    }
+                },
+                title = { CupertinoText("Notifications") }
+            )
+        }
+
+        CupertinoSection(
+            title = { CupertinoText("Stay Alive") },
+            caption = { CupertinoText("Required on Tecno, Xiaomi, Oppo and other aggressive skins") }
+        ) {
+            SectionItem(
+                leadingContent = {
+                    CupertinoIcon(
+                        imageVector = CupertinoIcons.Outlined.Gearshape,
+                        contentDescription = null,
+                        tint = CupertinoTheme.colorScheme.accent
+                    )
+                },
+                trailingContent = {
+                    if (!batteryWhitelisted) {
+                        CupertinoButton(
+                            onClick = {
+                                com.shots.util.BatteryOptHelper.requestWhitelist(context)
+                            },
+                            colors = CupertinoButtonDefaults.plainButtonColors()
+                        ) { CupertinoText("Grant") }
+                    }
+                },
+                title = { CupertinoText("Run in Background") }
+            )
+            SectionItem(
+                trailingContent = {
+                    CupertinoButton(
                         onClick = {
                             com.shots.util.AutoStartHelper.openSettings(context)
                         },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Allow auto-start") }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PermissionRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    granted: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-        if (granted) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Granted",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                        colors = CupertinoButtonDefaults.plainButtonColors()
+                    ) { CupertinoText("Open") }
+                },
+                title = { CupertinoText("Allow auto-start") }
             )
-        } else {
-            Button(
-                onClick = onClick,
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Grant")
-            }
         }
     }
 }
