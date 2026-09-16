@@ -17,6 +17,9 @@ import com.shots.util.DeleteSuppressor
 import com.shots.util.MediaStoreUtils
 import com.shots.util.TimerAlarmScheduler
 import com.slapps.cupertino.CupertinoActionSheet
+import com.slapps.cupertino.cancel
+import com.slapps.cupertino.default
+import com.slapps.cupertino.destructive
 import com.slapps.cupertino.CupertinoAlertDialog
 import com.slapps.cupertino.CupertinoText
 import com.slapps.cupertino.ExperimentalCupertinoApi

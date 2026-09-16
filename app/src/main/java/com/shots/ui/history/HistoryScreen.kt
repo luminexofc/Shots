@@ -52,7 +52,11 @@ import com.slapps.cupertino.icons.outlined.ChevronBackward
 import com.slapps.cupertino.icons.outlined.MagnifyingGlass
 import com.slapps.cupertino.section.CupertinoSection
 import com.slapps.cupertino.section.SectionItem
+import com.slapps.cupertino.section.SectionScope
 import com.slapps.cupertino.theme.CupertinoTheme
+import com.slapps.cupertino.theme.CupertinoColors
+import com.slapps.cupertino.theme.systemOrange
+import com.slapps.cupertino.theme.systemRed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -206,7 +210,7 @@ fun HistoryScreen(onBack: () -> Unit) {
 
 @OptIn(ExperimentalCupertinoApi::class)
 @Composable
-private fun ScreenshotItem(
+private fun SectionScope.ScreenshotItem(
     screenshot: Screenshot,
     countdown: String?,
     countdownLabel: String = "Deletes",
@@ -217,9 +221,9 @@ private fun ScreenshotItem(
     val context = LocalContext.current
     val statusColor = when (screenshot.status) {
         "kept" -> CupertinoTheme.colorScheme.accent
-        "deleted" -> CupertinoTheme.colorScheme.systemRed
-        "pending" -> CupertinoTheme.colorScheme.systemOrange
-        "snoozed" -> CupertinoTheme.colorScheme.systemOrange
+        "deleted" -> CupertinoColors.systemRed
+        "pending" -> CupertinoColors.systemOrange
+        "snoozed" -> CupertinoColors.systemOrange
         else -> CupertinoTheme.colorScheme.secondaryLabel
     }
 

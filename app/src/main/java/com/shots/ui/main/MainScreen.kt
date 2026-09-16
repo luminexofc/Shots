@@ -27,8 +27,10 @@ import com.shots.PermissionsActivity
 import com.shots.data.PreferencesManager
 import com.shots.data.ScreenshotDatabase
 import com.slapps.cupertino.CupertinoAlertDialog
+import com.slapps.cupertino.default
 import com.slapps.cupertino.CupertinoButtonDefaults
 import com.slapps.cupertino.CupertinoIcon
+import com.slapps.cupertino.theme.CupertinoColors
 import com.slapps.cupertino.CupertinoIconButton
 import com.slapps.cupertino.CupertinoText
 import com.slapps.cupertino.CupertinoTopAppBar
@@ -40,6 +42,7 @@ import com.slapps.cupertino.section.CupertinoSection
 import com.slapps.cupertino.section.SectionItem
 import com.slapps.cupertino.section.SectionLink
 import com.slapps.cupertino.theme.CupertinoTheme
+import com.slapps.cupertino.theme.systemRed
 
 @OptIn(ExperimentalCupertinoApi::class)
 @Composable
@@ -89,7 +92,7 @@ fun MainScreen() {
                             CupertinoIcon(
                                 imageVector = CupertinoIcons.Outlined.ExclamationmarkTriangle,
                                 contentDescription = null,
-                                tint = CupertinoTheme.colorScheme.systemRed
+                                tint = CupertinoColors.systemRed
                             )
                         },
                         title = { CupertinoText("Permissions Required") },

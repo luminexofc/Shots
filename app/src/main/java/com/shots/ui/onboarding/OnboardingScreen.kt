@@ -53,6 +53,7 @@ import com.slapps.cupertino.icons.outlined.Lock
 import com.slapps.cupertino.icons.outlined.Play
 import com.slapps.cupertino.section.CupertinoSection
 import com.slapps.cupertino.section.SectionItem
+import com.slapps.cupertino.section.SectionScope
 import com.slapps.cupertino.theme.CupertinoTheme
 import kotlinx.coroutines.launch
 
@@ -356,7 +357,7 @@ private fun BackgroundPage(
 
 @OptIn(ExperimentalCupertinoApi::class)
 @Composable
-private fun PermissionItem(title: String, granted: Boolean, onClick: () -> Unit) {
+private fun SectionScope.PermissionItem(title: String, granted: Boolean, onClick: () -> Unit) {
     SectionItem(
         trailingContent = {
             if (!granted) {
