@@ -2,7 +2,7 @@ package com.shots.ui.settings
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,8 +10,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import com.shots.ui.components.ShotsIcon
+import com.shots.ui.components.ShotsSlider
+import com.shots.ui.components.ShotsSwitch
+import com.shots.ui.components.ShotsText
+import com.shots.ui.components.ShotsTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,27 +34,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.shots.ShotsApp
 import com.shots.data.PreferencesManager
-import com.slapps.cupertino.CupertinoIcon
-import com.slapps.cupertino.CupertinoNavigateBackButton
-import com.slapps.cupertino.CupertinoSegmentedControl
-import com.slapps.cupertino.CupertinoSegmentedControlTab
-import com.slapps.cupertino.CupertinoSlider
-import com.slapps.cupertino.CupertinoSwitch
-import com.slapps.cupertino.CupertinoText
-import com.slapps.cupertino.CupertinoTopAppBar
-import com.slapps.cupertino.ExperimentalCupertinoApi
-import com.slapps.cupertino.icons.CupertinoIcons
-import com.slapps.cupertino.icons.outlined.ChevronForward
-import com.slapps.cupertino.icons.outlined.SquareAndArrowUp
-import com.slapps.cupertino.section.CupertinoSection
-import com.slapps.cupertino.section.SectionItem
-import com.slapps.cupertino.section.SectionLink
-import com.slapps.cupertino.theme.CupertinoTheme
+import com.shots.ui.components.SegmentedControl
+import com.shots.ui.components.ShotsCard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -70,126 +64,160 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     val themeOptions = listOf("System", "Dark", "Light")
 
-    Column(modifier = Modifier.fillMaxSize().background(CupertinoTheme.colorScheme.systemGroupedBackground)) {
-        CupertinoTopAppBar(
-            title = { CupertinoText("Settings") },
-            navigationIcon = {
-                CupertinoNavigateBackButton(onClick = onBack) {
-                    CupertinoText("Back")
-                }
-            }
-        )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ShotsTheme.colorScheme.background)
+    ) {
+        ShotsTopBar(title = "Settings", onBack = onBack)
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            CupertinoSection(
-                title = { CupertinoText("Timers") },
-                caption = { CupertinoText("Defaults used in the popup") }
-            ) {
-                SectionItem(
-                    title = {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            CupertinoText("Timer: ${sliderValue.toInt()} minutes")
-                            CupertinoSlider(
-                                value = sliderValue,
-                                onValueChange = { sliderValue = it },
-                                onValueChangeFinished = {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        prefs.setTimerMinutes(sliderValue.toInt())
-                                        app.trackSettingChanged("timer_minutes", sliderValue.toInt())
-                                    }
-                                },
-                                valueRange = 1f..60f,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            CupertinoText("Snooze: ${snoozeSlider.toInt()} minutes")
-                            CupertinoSlider(
-                                value = snoozeSlider,
-                                onValueChange = { snoozeSlider = it },
-                                onValueChangeFinished = {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        prefs.setSnoozeMinutes(snoozeSlider.toInt())
-                                        app.trackSettingChanged("snooze_minutes", snoozeSlider.toInt())
-                                    }
-                                },
-                                valueRange = 1f..60f,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+            ShotsCard {
+                ShotsText(
+                    text = "Timer Length",
+                    style = ShotsTheme.typography.titleLarge,
+                    color = ShotsTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                ShotsText(
+                    text = "Default timer length used in the popup",
+                    style = ShotsTheme.typography.bodyMedium,
+                    color = ShotsTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                ShotsText(
+                    text = "Timer: ${sliderValue.toInt()} minutes",
+                    style = ShotsTheme.typography.bodyMedium,
+                    color = ShotsTheme.colorScheme.onSurface
+                )
+                ShotsSlider(
+                    value = sliderValue,
+                    onValueChange = { sliderValue = it },
+                    onValueChangeFinished = {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            prefs.setTimerMinutes(sliderValue.toInt())
+                            app.trackSettingChanged("timer_minutes", sliderValue.toInt())
+                        }
+                    },
+                    valueRange = 1f..60f,
+                    modifier = Modifier.fillMaxWidth(),
+                    )
+                Spacer(modifier = Modifier.height(16.dp))
+                ShotsText(
+                    text = "Snooze: ${snoozeSlider.toInt()} minutes",
+                    style = ShotsTheme.typography.bodyMedium,
+                    color = ShotsTheme.colorScheme.onSurface
+                )
+                ShotsSlider(
+                    value = snoozeSlider,
+                    onValueChange = { snoozeSlider = it },
+                    onValueChangeFinished = {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            prefs.setSnoozeMinutes(snoozeSlider.toInt())
+                            app.trackSettingChanged("snooze_minutes", snoozeSlider.toInt())
+                        }
+                    },
+                    valueRange = 1f..60f,
+                    modifier = Modifier.fillMaxWidth(),
+                    )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ShotsCard {
+                ShotsText(
+                    text = "Appearance",
+                    style = ShotsTheme.typography.titleLarge,
+                    color = ShotsTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                ShotsText(
+                    text = "Choose your theme",
+                    style = ShotsTheme.typography.bodyMedium,
+                    color = ShotsTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SegmentedControl(
+                    options = themeOptions,
+                    selectedIndex = darkMode,
+                    onSelected = { index ->
+                        CoroutineScope(Dispatchers.IO).launch {
+                            prefs.setDarkMode(index)
+                            app.trackSettingChanged("theme", themeOptions[index])
                         }
                     }
                 )
             }
 
-            CupertinoSection(
-                title = { CupertinoText("Appearance") }
-            ) {
-                SectionItem(
-                    title = {
-                        CupertinoSegmentedControl(
-                            selectedTabIndex = darkMode,
-                            modifier = Modifier.fillMaxWidth(),
-                            tabs = {
-                                themeOptions.forEachIndexed { index, option ->
-                                    CupertinoSegmentedControlTab(
-                                        onClick = {
-                                            CoroutineScope(Dispatchers.IO).launch {
-                                                prefs.setDarkMode(index)
-                                                app.trackSettingChanged("theme", themeOptions[index])
-                                            }
-                                        },
-                                        isSelected = darkMode == index
-                                    ) {
-                                        CupertinoText(option)
-                                    }
-                                }
-                            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ShotsCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        ShotsText(
+                            text = "Edit Button",
+                            style = ShotsTheme.typography.titleLarge,
+                            color = ShotsTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        ShotsText(
+                            text = "Show system editor shortcut in the popup",
+                            style = ShotsTheme.typography.bodyMedium,
+                            color = ShotsTheme.colorScheme.secondary
                         )
                     }
-                )
-            }
-
-            CupertinoSection(
-                title = { CupertinoText("Popup") }
-            ) {
-                SectionItem(
-                    trailingContent = {
-                        CupertinoSwitch(
-                            checked = showEditButton,
-                            onCheckedChange = { enabled ->
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    prefs.setShowEditButton(enabled)
-                                }
-                                app.trackSettingChanged("edit_button", enabled)
+                    ShotsSwitch(
+                        checked = showEditButton,
+                        onCheckedChange = { enabled ->
+                            CoroutineScope(Dispatchers.IO).launch {
+                                prefs.setShowEditButton(enabled)
                             }
-                        )
-                    },
-                    title = {
-                        Column {
-                            CupertinoText("Edit Button")
-                            CupertinoText("System editor shortcut in the popup")
+                            app.trackSettingChanged("edit_button", enabled)
                         }
-                    }
-                )
+                    )
+                }
             }
 
-            CupertinoSection {
-                SectionLink(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.supportkori.com/luminex"))
-                        context.startActivity(intent)
-                    },
-                    icon = {
-                        CupertinoIcon(
-                            imageVector = CupertinoIcons.Outlined.SquareAndArrowUp,
-                            contentDescription = null
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ShotsCard(
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.supportkori.com/luminex"))
+                    context.startActivity(intent)
+                }
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        ShotsText(
+                            text = "Support Shots",
+                            style = ShotsTheme.typography.titleLarge,
+                            color = ShotsTheme.colorScheme.onSurface
                         )
-                    },
-                    title = { CupertinoText("Support Shots") },
-                    caption = { CupertinoText("Donate to keep the app alive") }
-                )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        ShotsText(
+                            text = "Donate to keep the app alive",
+                            style = ShotsTheme.typography.bodyMedium,
+                            color = ShotsTheme.colorScheme.secondary
+                        )
+                    }
+                    ShotsIcon(
+                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                        contentDescription = "Open support link",
+                        tint = ShotsTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

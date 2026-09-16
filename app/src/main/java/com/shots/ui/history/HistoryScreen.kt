@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,28 +37,16 @@ import coil.compose.rememberAsyncImagePainter
 import com.shots.ShotsApp
 import com.shots.data.Screenshot
 import com.shots.data.ScreenshotDatabase
+import com.shots.ui.components.SegmentedControl
+import com.shots.ui.components.ShotsButton
+import com.shots.ui.components.ShotsButtonVariant
+import com.shots.ui.components.ShotsCard
+import com.shots.ui.components.ShotsIcon
+import com.shots.ui.components.ShotsText
+import com.shots.ui.components.ShotsTopBar
+import com.shots.ui.theme.ShotsTheme
 import com.shots.util.MediaStoreUtils
 import com.shots.util.TimerAlarmScheduler
-import com.slapps.cupertino.CupertinoButton
-import com.slapps.cupertino.CupertinoButtonDefaults
-import com.slapps.cupertino.CupertinoIcon
-import com.slapps.cupertino.CupertinoIconButton
-import com.slapps.cupertino.CupertinoNavigateBackButton
-import com.slapps.cupertino.CupertinoSegmentedControl
-import com.slapps.cupertino.CupertinoSegmentedControlTab
-import com.slapps.cupertino.CupertinoText
-import com.slapps.cupertino.CupertinoTopAppBar
-import com.slapps.cupertino.ExperimentalCupertinoApi
-import com.slapps.cupertino.icons.CupertinoIcons
-import com.slapps.cupertino.icons.outlined.ChevronBackward
-import com.slapps.cupertino.icons.outlined.MagnifyingGlass
-import com.slapps.cupertino.section.CupertinoSection
-import com.slapps.cupertino.section.SectionItem
-import com.slapps.cupertino.section.SectionScope
-import com.slapps.cupertino.theme.CupertinoTheme
-import com.slapps.cupertino.theme.CupertinoColors
-import com.slapps.cupertino.theme.systemOrange
-import com.slapps.cupertino.theme.systemRed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,7 +62,6 @@ private fun formatCountdown(at: Long): String {
     return "in ${h / 24}d ${h % 24}h"
 }
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
 fun HistoryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -92,115 +81,111 @@ fun HistoryScreen(onBack: () -> Unit) {
         else -> allScreenshots
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(CupertinoTheme.colorScheme.systemGroupedBackground)) {
-        CupertinoTopAppBar(
-            title = { CupertinoText("History") },
-            navigationIcon = {
-                CupertinoNavigateBackButton(onClick = onBack) {
-                CupertinoText("Back")
-            }
-            }
-        )
-        CupertinoSegmentedControl(
-            selectedTabIndex = selectedFilter,
-            modifier = Modifier.fillMaxWidth(),
-            tabs = {
-                filters.forEachIndexed { i, filter ->
-                    CupertinoSegmentedControlTab(
-                        onClick = { selectedFilter = i },
-                        isSelected = selectedFilter == i
-                    ) {
-                        CupertinoText(filter)
-                    }
-                }
-            }
-        )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ShotsTheme.colorScheme.background)
+    ) {
+        ShotsTopBar(title = "History", onBack = onBack)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            SegmentedControl(
+                options = filters,
+                selectedIndex = selectedFilter,
+                onSelected = { selectedFilter = it }
+            )
 
-        if (filteredScreenshots.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 64.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                CupertinoIcon(
-                    imageVector = CupertinoIcons.Outlined.MagnifyingGlass,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = CupertinoTheme.colorScheme.tertiaryLabel
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                CupertinoText(
-                    text = "No screenshots yet"
-                )
-            }
-        } else {
-            LazyColumn {
-                item {
-                    CupertinoSection {
-                        filteredScreenshots.forEach { screenshot ->
-                            val isPending = screenshot.status == "pending" && screenshot.scheduledDeletionAt > 0
-                            val isSnoozed = screenshot.status == "snoozed" && screenshot.scheduledDeletionAt > 0
-                            val isTimed = isPending || isSnoozed
-                            ScreenshotItem(
-                                screenshot = screenshot,
-                                countdown = if (isTimed) formatCountdown(screenshot.scheduledDeletionAt) else null,
-                                countdownLabel = if (isSnoozed) "Reminds" else "Deletes",
-                                onCancel = if (isTimed) {
-                                    {
-                                        scope.launch {
-                                            withContext(Dispatchers.IO) {
-                                                if (isSnoozed) {
-                                                    TimerAlarmScheduler.cancelSnooze(context, screenshot.path)
-                                                } else {
-                                                    TimerAlarmScheduler.cancel(context, screenshot.id)
-                                                }
-                                                db.screenshotDao().getByPath(screenshot.path)?.let {
-                                                    db.screenshotDao().update(
-                                                        it.copy(status = "kept", scheduledDeletionAt = 0L)
-                                                    )
-                                                }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (filteredScreenshots.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 64.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    ShotsIcon(
+                        imageVector = Icons.Default.PhotoLibrary,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = ShotsTheme.colorScheme.outline
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    ShotsText(
+                        text = "No screenshots yet",
+                        style = ShotsTheme.typography.titleMedium,
+                        color = ShotsTheme.colorScheme.secondary,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                LazyColumn {
+                    items(filteredScreenshots) { screenshot ->
+                        val isPending = screenshot.status == "pending" && screenshot.scheduledDeletionAt > 0
+                        val isSnoozed = screenshot.status == "snoozed" && screenshot.scheduledDeletionAt > 0
+                        val isTimed = isPending || isSnoozed
+                        ScreenshotItem(
+                            screenshot = screenshot,
+                            countdown = if (isTimed) formatCountdown(screenshot.scheduledDeletionAt) else null,
+                            countdownLabel = if (isSnoozed) "Reminds" else "Deletes",
+                            onCancel = if (isTimed) {
+                                {
+                                    scope.launch {
+                                        withContext(Dispatchers.IO) {
+                                            if (isSnoozed) {
+                                                TimerAlarmScheduler.cancelSnooze(context, screenshot.path)
+                                            } else {
+                                                TimerAlarmScheduler.cancel(context, screenshot.id)
                                             }
-                                            app.trackScreenshotAction(if (isSnoozed) "snooze_cancelled" else "timer_cancelled")
+                                            db.screenshotDao().getByPath(screenshot.path)?.let {
+                                                db.screenshotDao().update(
+                                                    it.copy(status = "kept", scheduledDeletionAt = 0L)
+                                                )
+                                            }
                                         }
+                                        app.trackScreenshotAction(if (isSnoozed) "snooze_cancelled" else "timer_cancelled")
                                     }
-                                } else null,
-                                onExtend = if (isTimed) {
-                                    {
-                                        scope.launch {
-                                            withContext(Dispatchers.IO) {
-                                                val row = db.screenshotDao().getByPath(screenshot.path)
-                                                if (row != null) {
-                                                    val base = maxOf(row.scheduledDeletionAt, System.currentTimeMillis())
-                                                    val next = base + 15 * 60_000L
-                                                    db.screenshotDao().update(
-                                                        row.copy(status = row.status, scheduledDeletionAt = next)
-                                                    )
-                                                    if (row.status == "snoozed") {
-                                                        TimerAlarmScheduler.snoozeAt(context, row.path, next)
-                                                    } else {
-                                                        TimerAlarmScheduler.schedule(context, row.path, row.id, next)
-                                                    }
-                                                }
-                                            }
-                                            app.trackScreenshotAction(if (isSnoozed) "snooze_extended" else "timer_extended")
-                                        }
-                                    }
-                                } else null,
-                                onClick = {
-                                    try {
-                                        val uri = MediaStoreUtils.getUriForScreenshot(context, screenshot.path)
-                                        if (uri != null) {
-                                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                setDataAndType(uri, "image/*")
-                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                            }
-                                            context.startActivity(intent)
-                                        }
-                                    } catch (_: Exception) { }
                                 }
-                            )
-                        }
+                            } else null,
+                            onExtend = if (isTimed) {
+                                {
+                                    scope.launch {
+                                        withContext(Dispatchers.IO) {
+                                            val row = db.screenshotDao().getByPath(screenshot.path)
+                                            if (row != null) {
+                                                val base = maxOf(row.scheduledDeletionAt, System.currentTimeMillis())
+                                                val next = base + 15 * 60_000L
+                                                db.screenshotDao().update(
+                                                    row.copy(status = row.status, scheduledDeletionAt = next)
+                                                )
+                                                if (row.status == "snoozed") {
+                                                    TimerAlarmScheduler.snoozeAt(context, row.path, next)
+                                                } else {
+                                                    TimerAlarmScheduler.schedule(context, row.path, row.id, next)
+                                                }
+                                            }
+                                        }
+                                        app.trackScreenshotAction(if (isSnoozed) "snooze_extended" else "timer_extended")
+                                    }
+                                }
+                            } else null,
+                            onClick = {
+                                try {
+                                    val uri = MediaStoreUtils.getUriForScreenshot(context, screenshot.path)
+                                    if (uri != null) {
+                                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                                            setDataAndType(uri, "image/*")
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(intent)
+                                    }
+                                } catch (_: Exception) { }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
@@ -208,9 +193,8 @@ fun HistoryScreen(onBack: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
-private fun SectionScope.ScreenshotItem(
+private fun ScreenshotItem(
     screenshot: Screenshot,
     countdown: String?,
     countdownLabel: String = "Deletes",
@@ -220,16 +204,20 @@ private fun SectionScope.ScreenshotItem(
 ) {
     val context = LocalContext.current
     val statusColor = when (screenshot.status) {
-        "kept" -> CupertinoTheme.colorScheme.accent
-        "deleted" -> CupertinoColors.systemRed
-        "pending" -> CupertinoColors.systemOrange
-        "snoozed" -> CupertinoColors.systemOrange
-        else -> CupertinoTheme.colorScheme.secondaryLabel
+        "kept" -> ShotsTheme.colorScheme.primary
+        "deleted" -> ShotsTheme.colorScheme.error
+        "pending" -> ShotsTheme.colorScheme.warning
+        "snoozed" -> ShotsTheme.colorScheme.warning
+        else -> ShotsTheme.colorScheme.secondary
     }
 
-    SectionItem(
-        modifier = Modifier.clickable(onClick = onClick),
-        leadingContent = {
+    ShotsCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             val uri = remember(screenshot.path) {
                 MediaStoreUtils.getUriForScreenshot(context, screenshot.path)
             }
@@ -251,55 +239,59 @@ private fun SectionScope.ScreenshotItem(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(CupertinoTheme.colorScheme.quaternarySystemFill),
+                        .background(ShotsTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    CupertinoIcon(
-                        imageVector = CupertinoIcons.Outlined.MagnifyingGlass,
+                    ShotsIcon(
+                        imageVector = Icons.Default.PhotoLibrary,
                         contentDescription = null,
-                        tint = CupertinoTheme.colorScheme.tertiaryLabel,
+                        tint = ShotsTheme.colorScheme.outline,
                         modifier = Modifier.size(24.dp)
                     )
                 }
             }
-        },
-        trailingContent = {
-            CupertinoText(
-                text = screenshot.status.replaceFirstChar { it.uppercase() }
-            )
-        },
-        title = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                CupertinoText(
-                    text = MediaStoreUtils.displayName(screenshot.path).take(30)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                ShotsText(
+                    text = MediaStoreUtils.displayName(screenshot.path).take(30),
+                    style = ShotsTheme.typography.bodyMedium,
+                    color = ShotsTheme.colorScheme.onSurface
                 )
-                CupertinoText(
-                    text = screenshot.timestamp
+                ShotsText(
+                    text = screenshot.timestamp,
+                    style = ShotsTheme.typography.bodySmall,
+                    color = ShotsTheme.colorScheme.secondary
                 )
                 if (countdown != null) {
-                    CupertinoText(
-                        text = "$countdownLabel $countdown"
+                    ShotsText(
+                        text = "$countdownLabel $countdown",
+                        style = ShotsTheme.typography.bodySmall,
+                        color = ShotsTheme.colorScheme.warning
                     )
                     Row {
                         if (onCancel != null) {
-                            CupertinoButton(
-                                onClick = onCancel,
-                                colors = CupertinoButtonDefaults.plainButtonColors()
-                            ) {
-                                CupertinoText("Cancel")
+                            ShotsButton(onClick = onCancel, variant = ShotsButtonVariant.Text) {
+                                ShotsText("Cancel")
                             }
                         }
                         if (onExtend != null) {
-                            CupertinoButton(
-                                onClick = onExtend,
-                                colors = CupertinoButtonDefaults.plainButtonColors()
-                            ) {
-                                CupertinoText("+15 min")
+                            ShotsButton(onClick = onExtend, variant = ShotsButtonVariant.Text) {
+                                ShotsText("+15 min")
                             }
                         }
                     }
                 }
             }
+            Column(
+                modifier = Modifier.padding(start = 8.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                ShotsText(
+                    text = screenshot.status.replaceFirstChar { it.uppercase() },
+                    style = ShotsTheme.typography.labelMedium,
+                    color = statusColor
+                )
+            }
         }
-    )
+    }
 }

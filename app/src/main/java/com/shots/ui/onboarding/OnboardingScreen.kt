@@ -7,6 +7,8 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +25,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Visibility
+import com.shots.ui.components.ShotsButton
+import com.shots.ui.components.ShotsButtonVariant
+import com.shots.ui.components.ShotsIcon
+import com.shots.ui.components.ShotsText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -33,33 +48,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.slapps.cupertino.CupertinoButton
-import com.slapps.cupertino.CupertinoButtonDefaults
-import com.slapps.cupertino.CupertinoIcon
-import com.slapps.cupertino.CupertinoText
-import com.slapps.cupertino.ExperimentalCupertinoApi
-import com.slapps.cupertino.icons.CupertinoIcons
-import com.slapps.cupertino.icons.outlined.Bell
-import com.slapps.cupertino.icons.outlined.CheckmarkCircle
-import com.slapps.cupertino.icons.outlined.Gearshape
-import com.slapps.cupertino.icons.outlined.House
-import com.slapps.cupertino.icons.outlined.Lock
-import com.slapps.cupertino.icons.outlined.Play
-import com.slapps.cupertino.section.CupertinoSection
-import com.slapps.cupertino.section.SectionItem
-import com.slapps.cupertino.section.SectionScope
-import com.slapps.cupertino.theme.CupertinoTheme
 import kotlinx.coroutines.launch
 
 private fun openAllFilesSettings(context: android.content.Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
     try {
+        // Per-app screen — works on most devices
         val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
             data = android.net.Uri.parse("package:${context.packageName}")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -67,11 +68,13 @@ private fun openAllFilesSettings(context: android.content.Context) {
         context.startActivity(intent)
     } catch (_: Exception) {
         try {
+            // Fallback: the all-apps list screen
             context.startActivity(
                 Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         } catch (_: Exception) {
+            // Last resort: general app details
             context.startActivity(
                 Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                     data = android.net.Uri.parse("package:${context.packageName}")
@@ -82,14 +85,11 @@ private fun openAllFilesSettings(context: android.content.Context) {
     }
 }
 
-private const val PAGE_COUNT = 5
-private const val LAST_PAGE = PAGE_COUNT - 1
-
-@OptIn(ExperimentalFoundationApi::class, ExperimentalCupertinoApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(onComplete: () -> Unit) {
     val context = LocalContext.current
-    val pagerState = rememberPagerState(pageCount = { PAGE_COUNT })
+    val pagerState = rememberPagerState(pageCount = { 4 })
     val coroutineScope = rememberCoroutineScope()
 
     var storageGranted by remember { mutableStateOf(false) }
@@ -145,7 +145,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(CupertinoTheme.colorScheme.systemBackground)
+            .background(ShotsTheme.colorScheme.background)
     ) {
         HorizontalPager(
             state = pagerState,
@@ -153,12 +153,12 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         ) { page ->
             when (page) {
                 0 -> WelcomePage()
-                1 -> HowItWorksPage()
-                2 -> PermissionsPage(
+                1 -> PermissionsPage(
                     storageGranted = storageGranted,
                     overlayGranted = overlayGranted,
                     notificationGranted = notificationGranted,
                     allFilesGranted = allFilesGranted,
+                    batteryWhitelisted = batteryWhitelisted,
                     onStorageClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
@@ -175,22 +175,17 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     onAllFilesClick = {
                         openAllFilesSettings(context)
                     },
+                    onBatteryClick = {
+                        com.shots.util.BatteryOptHelper.requestWhitelist(context)
+                    },
                     onNotificationClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
                     }
                 )
-                3 -> BackgroundPage(
-                    batteryWhitelisted = batteryWhitelisted,
-                    onBatteryClick = {
-                        com.shots.util.BatteryOptHelper.requestWhitelist(context)
-                    },
-                    onAutoStartClick = {
-                        com.shots.util.AutoStartHelper.openSettings(context)
-                    }
-                )
-                else -> ReadyPage()
+                2 -> HowItWorksPage()
+                3 -> ReadyPage()
             }
         }
 
@@ -204,15 +199,15 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
-                repeat(PAGE_COUNT) { index ->
+                repeat(4) { index ->
                     val isSelected = pagerState.currentPage == index
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 4.dp)
                             .size(if (isSelected) 10.dp else 8.dp)
                             .background(
-                                if (isSelected) CupertinoTheme.colorScheme.accent
-                                else CupertinoTheme.colorScheme.separator,
+                                if (isSelected) ShotsTheme.colorScheme.primary
+                                else ShotsTheme.colorScheme.outline,
                                 CircleShape
                             )
                     )
@@ -226,25 +221,25 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (pagerState.currentPage < LAST_PAGE) {
-                    CupertinoButton(
+                if (pagerState.currentPage < 3) {
+                    ShotsButton(
                         onClick = {
                             coroutineScope.launch {
-                                pagerState.animateScrollToPage(LAST_PAGE)
+                                pagerState.animateScrollToPage(3)
                             }
                         },
-                        colors = CupertinoButtonDefaults.plainButtonColors()
+                        variant = ShotsButtonVariant.Text
                     ) {
-                        CupertinoText("Skip")
+                        ShotsText("Skip", color = ShotsTheme.colorScheme.secondary)
                     }
                 } else {
                     Spacer(modifier = Modifier.width(64.dp))
                 }
 
-                CupertinoButton(
+                ShotsButton(
                     onClick = {
                         coroutineScope.launch {
-                            if (pagerState.currentPage < LAST_PAGE) {
+                            if (pagerState.currentPage < 3) {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
                             } else {
                                 onComplete()
@@ -252,8 +247,10 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         }
                     }
                 ) {
-                    CupertinoText(
-                        if (pagerState.currentPage == LAST_PAGE) "Get Started" else "Next"
+                    ShotsText(
+                        if (pagerState.currentPage == 3) "Get Started" else "Next",
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        color = ShotsTheme.colorScheme.onPrimary
                     )
                 }
             }
@@ -261,117 +258,78 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
 private fun WelcomePage() {
+    var scale by remember { mutableStateOf(0.5f) }
+    val animatedScale by animateFloatAsState(targetValue = scale, animationSpec = tween(durationMillis = 1000), label = "scale")
+    LaunchedEffect(Unit) { scale = 1f }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CupertinoIcon(
-            imageVector = CupertinoIcons.Outlined.House,
+        ShotsIcon(
+            imageVector = Icons.Default.CameraAlt,
             contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = CupertinoTheme.colorScheme.accent
+            modifier = Modifier.size(120.dp).scale(animatedScale),
+            tint = ShotsTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(32.dp))
-        CupertinoText("Shots")
+        ShotsText("Shots", style = ShotsTheme.typography.headlineLarge, color = ShotsTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
-        CupertinoText(
-            text = "Your screenshots, your rules.",
-            textAlign = TextAlign.Center
-        )
+        ShotsText("Your screenshots, your rules.", style = ShotsTheme.typography.bodyLarge, color = ShotsTheme.colorScheme.secondary, textAlign = TextAlign.Center)
     }
 }
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
 private fun PermissionsPage(
     storageGranted: Boolean, overlayGranted: Boolean, notificationGranted: Boolean,
-    allFilesGranted: Boolean,
+    allFilesGranted: Boolean, batteryWhitelisted: Boolean,
     onStorageClick: () -> Unit, onOverlayClick: () -> Unit, onAllFilesClick: () -> Unit,
+    onBatteryClick: () -> Unit,
     onNotificationClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CupertinoText("Permissions")
+        ShotsText("Permissions", style = ShotsTheme.typography.headlineMedium, color = ShotsTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
-        CupertinoText(
-            text = "Shots needs these to catch screenshots the second you take them.",
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        CupertinoSection {
-            PermissionItem(title = "Storage Access", granted = storageGranted, onClick = onStorageClick)
-            PermissionItem(title = "Display Over Apps", granted = overlayGranted, onClick = onOverlayClick)
-            PermissionItem(title = "All Files Access", granted = allFilesGranted, onClick = onAllFilesClick)
-            PermissionItem(title = "Notifications", granted = notificationGranted, onClick = onNotificationClick)
-        }
+        ShotsText("We need a few permissions to protect your screenshots.", style = ShotsTheme.typography.bodyMedium, color = ShotsTheme.colorScheme.secondary, textAlign = TextAlign.Center)
+        Spacer(modifier = Modifier.height(32.dp))
+        PermissionItem(icon = Icons.Default.PhotoLibrary, title = "Storage Access", granted = storageGranted, onClick = onStorageClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        PermissionItem(icon = Icons.Default.Visibility, title = "Display Over Apps", granted = overlayGranted, onClick = onOverlayClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        PermissionItem(icon = Icons.Default.Delete, title = "All Files Access", granted = allFilesGranted, onClick = onAllFilesClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        PermissionItem(icon = Icons.Default.BatteryChargingFull, title = "Run in Background", granted = batteryWhitelisted, onClick = onBatteryClick)
+        Spacer(modifier = Modifier.height(16.dp))
+        PermissionItem(icon = Icons.Default.Notifications, title = "Notifications", granted = notificationGranted, onClick = onNotificationClick)
     }
 }
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
-private fun BackgroundPage(
-    batteryWhitelisted: Boolean,
-    onBatteryClick: () -> Unit,
-    onAutoStartClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+private fun PermissionItem(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, granted: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().background(ShotsTheme.colorScheme.surface, RoundedCornerShape(12.dp)).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        CupertinoIcon(
-            imageVector = CupertinoIcons.Outlined.Gearshape,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = CupertinoTheme.colorScheme.accent
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        CupertinoText("Stay Alive")
-        Spacer(modifier = Modifier.height(8.dp))
-        CupertinoText(
-            text = "Android kills background apps. These two steps keep Shots watching.",
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        CupertinoSection {
-            PermissionItem(title = "Run in Background", granted = batteryWhitelisted, onClick = onBatteryClick)
-            SectionItem(
-                trailingContent = {
-                    CupertinoButton(
-                        onClick = onAutoStartClick,
-                        colors = CupertinoButtonDefaults.plainButtonColors()
-                    ) { CupertinoText("Open") }
-                },
-                title = { CupertinoText("Allow auto-start") }
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalCupertinoApi::class)
-@Composable
-private fun SectionScope.PermissionItem(title: String, granted: Boolean, onClick: () -> Unit) {
-    SectionItem(
-        trailingContent = {
-            if (!granted) {
-                CupertinoButton(
-                    onClick = onClick,
-                    colors = CupertinoButtonDefaults.plainButtonColors()
-                ) { CupertinoText("Grant") }
+        ShotsIcon(icon, contentDescription = null, tint = ShotsTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        ShotsText(title, style = ShotsTheme.typography.bodyLarge, color = ShotsTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        if (granted) {
+            ShotsIcon(Icons.Default.Check, contentDescription = "Granted", tint = ShotsTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+        } else {
+            ShotsButton(onClick = onClick) {
+                ShotsText("Grant", color = ShotsTheme.colorScheme.onPrimary)
             }
-        },
-        title = { CupertinoText(title) }
-    )
+        }
+    }
 }
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
 private fun HowItWorksPage() {
     Column(
@@ -379,54 +337,53 @@ private fun HowItWorksPage() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CupertinoText("How It Works")
+        ShotsText("How It Works", style = ShotsTheme.typography.headlineMedium, color = ShotsTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(32.dp))
-        StepItem("Take a Screenshot", "Just take a screenshot like normal")
+        StepItem("1", "Take a Screenshot", "Just take a screenshot like normal")
         Spacer(modifier = Modifier.height(24.dp))
-        StepItem("Popup Appears", "A popup will appear instantly")
+        StepItem("2", "Popup Appears", "A popup will appear instantly")
         Spacer(modifier = Modifier.height(24.dp))
-        StepItem("You Decide", "Keep, delete, or set a timer")
+        StepItem("3", "You Decide", "Keep, delete, or set a timer")
     }
 }
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
-private fun StepItem(title: String, description: String) {
+private fun StepItem(step: String, title: String, description: String) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        CupertinoIcon(
-            imageVector = CupertinoIcons.Outlined.CheckmarkCircle,
-            contentDescription = null,
-            tint = CupertinoTheme.colorScheme.accent,
-            modifier = Modifier.size(28.dp)
-        )
+        Box(
+            modifier = Modifier.size(40.dp).background(ShotsTheme.colorScheme.primary, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            ShotsText(step, color = ShotsTheme.colorScheme.onPrimary, style = ShotsTheme.typography.labelLarge)
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Column {
-            CupertinoText(title)
-            CupertinoText(description)
+            ShotsText(title, style = ShotsTheme.typography.titleMedium, color = ShotsTheme.colorScheme.onBackground)
+            ShotsText(description, style = ShotsTheme.typography.bodyMedium, color = ShotsTheme.colorScheme.secondary)
         }
     }
 }
 
-@OptIn(ExperimentalCupertinoApi::class)
 @Composable
 private fun ReadyPage() {
+    var scale by remember { mutableStateOf(0.5f) }
+    val animatedScale by animateFloatAsState(targetValue = scale, animationSpec = tween(durationMillis = 1000), label = "scale")
+    LaunchedEffect(Unit) { scale = 1f }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CupertinoIcon(
-            imageVector = CupertinoIcons.Outlined.CheckmarkCircle,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = CupertinoTheme.colorScheme.accent
-        )
+        Box(
+            modifier = Modifier.size(120.dp).scale(animatedScale).background(ShotsTheme.colorScheme.primary, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            ShotsIcon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(60.dp), tint = ShotsTheme.colorScheme.onPrimary)
+        }
         Spacer(modifier = Modifier.height(32.dp))
-        CupertinoText("You're All Set!")
+        ShotsText("You're All Set!", style = ShotsTheme.typography.headlineLarge, color = ShotsTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
-        CupertinoText(
-            text = "Shots is ready to protect your screenshots.",
-            textAlign = TextAlign.Center
-        )
+        ShotsText("Shots is ready to protect your screenshots.", style = ShotsTheme.typography.bodyLarge, color = ShotsTheme.colorScheme.secondary, textAlign = TextAlign.Center)
     }
 }
