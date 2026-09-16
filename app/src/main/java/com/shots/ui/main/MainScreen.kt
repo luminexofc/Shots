@@ -3,6 +3,7 @@ package com.shots.ui.main
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,7 +62,7 @@ fun MainScreen() {
 
     val overlayGranted = Settings.canDrawOverlays(context)
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(CupertinoTheme.colorScheme.systemBackground)) {
         CupertinoTopAppBar(
             title = { CupertinoText("Shots") },
             actions = {

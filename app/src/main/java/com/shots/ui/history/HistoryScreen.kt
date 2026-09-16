@@ -92,7 +92,7 @@ fun HistoryScreen(onBack: () -> Unit) {
         else -> allScreenshots
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(CupertinoTheme.colorScheme.systemGroupedBackground)) {
         CupertinoTopAppBar(
             title = { CupertinoText("History") },
             navigationIcon = {

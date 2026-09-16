@@ -2,6 +2,7 @@ package com.shots.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -68,7 +69,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     val themeOptions = listOf("System", "Dark", "Light")
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(CupertinoTheme.colorScheme.systemGroupedBackground)) {
         CupertinoTopAppBar(
             title = { CupertinoText("Settings") },
             navigationIcon = {
