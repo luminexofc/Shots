@@ -8,6 +8,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -26,12 +27,7 @@ import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Visibility
-import com.shots.ui.components.ShotsButton
-import com.shots.ui.components.ShotsButtonVariant
-import com.shots.ui.components.ShotsTopBar
-import com.shots.ui.components.ShotsIcon
-import com.shots.ui.components.ShotsText
-import com.shots.ui.components.ShotsTopBar
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -45,7 +41,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.shots.ui.components.ShotsCard
+import com.komoui.components.Button
+import com.komoui.components.Card
+import com.shots.ui.components.ShotsIcon
+import com.shots.ui.components.ShotsText
 import com.shots.ui.theme.ShotsTheme
 
 @Composable
@@ -99,104 +98,78 @@ fun PermissionManagerScreen(onBack: () -> Unit) {
 
     checkPermissions()
 
-    ShotsTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(ShotsTheme.colorScheme.background)
-        ) {
-            ShotsTopBar(title = "Permissions", onBack = onBack)
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.PhotoLibrary,
-                        title = "Storage Access",
-                        granted = storageGranted,
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                            } else {
-                                storageLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                            }
-                        }
-                    )
+    Column(
+        modifier = Modifier.fillMaxSize().background(ShotsTheme.colorScheme.background)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.clickable(onClick = onBack).padding(8.dp)) {
+                ShotsIcon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+            ShotsText(text = "Permissions", style = ShotsTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        }
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Card {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    PermissionRow(icon = Icons.Default.PhotoLibrary, title = "Storage Access", granted = storageGranted, onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) storageLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                        else storageLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    })
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.Visibility,
-                        title = "Display Over Apps",
-                        granted = overlayGranted,
-                        onClick = {
-                            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                                data = android.net.Uri.parse("package:${context.packageName}")
-                            }
-                            context.startActivity(intent)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Card {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    PermissionRow(icon = Icons.Default.Visibility, title = "Display Over Apps", granted = overlayGranted, onClick = {
+                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                            data = android.net.Uri.parse("package:${context.packageName}")
                         }
-                    )
+                        context.startActivity(intent)
+                    })
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.Delete,
-                        title = "All Files Access",
-                        granted = allFilesGranted,
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Card {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    PermissionRow(icon = Icons.Default.Delete, title = "All Files Access", granted = allFilesGranted, onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            try {
+                                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                    data = android.net.Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
                                 try {
-                                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                        data = android.net.Uri.parse("package:${context.packageName}")
-                                    }
-                                    context.startActivity(intent)
+                                    context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
                                 } catch (_: Exception) {
-                                    try {
-                                        context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
-                                    } catch (_: Exception) {
-                                        context.startActivity(
-                                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                                data = android.net.Uri.parse("package:${context.packageName}")
-                                            }
-                                        )
-                                    }
+                                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                    })
                                 }
                             }
                         }
-                    )
+                    })
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.Notifications,
-                        title = "Notifications",
-                        granted = notificationGranted,
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Card {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    PermissionRow(icon = Icons.Default.Notifications, title = "Notifications", granted = notificationGranted, onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
-                    )
+                    })
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                ShotsCard {
-                    PermissionRow(
-                        icon = Icons.Default.DirectionsRun,
-                        title = "Run in Background",
-                        granted = batteryWhitelisted,
-                        onClick = {
-                            com.shots.util.BatteryOptHelper.requestWhitelist(context)
-                        }
-                    )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Card {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                    PermissionRow(icon = Icons.Default.DirectionsRun, title = "Run in Background", granted = batteryWhitelisted, onClick = {
+                        com.shots.util.BatteryOptHelper.requestWhitelist(context)
+                    })
                     Spacer(modifier = Modifier.height(8.dp))
-                    ShotsButton(
-                        onClick = {
-                            com.shots.util.AutoStartHelper.openSettings(context)
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { ShotsText("Allow auto-start") }
+                    Button(onClick = { com.shots.util.AutoStartHelper.openSettings(context) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Allow auto-start")
+                    }
                 }
             }
         }
@@ -210,32 +183,14 @@ private fun PermissionRow(
     granted: Boolean,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ShotsIcon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = ShotsTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        )
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        ShotsIcon(imageVector = icon, contentDescription = null, tint = ShotsTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
-        ShotsText(
-            text = title,
-            style = ShotsTheme.typography.bodyLarge,
-            color = ShotsTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
+        ShotsText(text = title, style = ShotsTheme.typography.bodyLarge, color = ShotsTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
         if (granted) {
-            ShotsIcon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Granted",
-                tint = ShotsTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
+            ShotsIcon(imageVector = Icons.Default.Check, contentDescription = "Granted", tint = ShotsTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         } else {
-            ShotsButton(onClick = onClick) {
+            Button(onClick = onClick) {
                 ShotsText("Grant", color = ShotsTheme.colorScheme.onPrimary)
             }
         }

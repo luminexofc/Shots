@@ -14,7 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.shots.data.PreferencesManager
 import com.shots.data.ScreenshotDatabase
-import com.shots.ui.theme.ShotsTheme
+import com.shots.ui.theme.ShotsKomoTheme
 import com.shots.util.DeleteSuppressor
 import com.shots.util.MediaStoreUtils
 import com.shots.util.NotificationHelper
@@ -72,7 +72,7 @@ class ConfirmDeleteActivity : ComponentActivity() {
         val prefs = PreferencesManager(this)
         setContent {
             val darkMode by prefs.darkMode.collectAsState(initial = 0)
-            ShotsTheme(darkMode = darkMode) {
+            ShotsKomoTheme(darkMode = darkMode) {
                 LaunchedEffect(Unit) {
                     val pendingIntent = withContext(Dispatchers.IO) {
                         MediaStoreUtils.createDeleteRequest(

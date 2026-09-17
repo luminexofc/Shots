@@ -7,7 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.shots.data.PreferencesManager
 import com.shots.ui.history.HistoryScreen
-import com.shots.ui.theme.ShotsTheme
+import com.shots.ui.theme.ShotsKomoTheme
 
 class HistoryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,7 +16,7 @@ class HistoryActivity : ComponentActivity() {
         (application as ShotsApp).trackScreenView("History")
         setContent {
             val darkMode by prefs.darkMode.collectAsState(initial = 0)
-            ShotsTheme(darkMode = darkMode) {
+            ShotsKomoTheme(darkMode = darkMode) {
                 HistoryScreen(onBack = { finish() })
             }
         }

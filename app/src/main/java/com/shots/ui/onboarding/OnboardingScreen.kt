@@ -7,8 +7,11 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import com.shots.ui.components.MotionTokens
+import com.shots.ui.components.isReducedMotion
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +30,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CameraAlt
@@ -34,23 +38,33 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Visibility
-import com.shots.ui.components.ShotsButton
-import com.shots.ui.components.ShotsButtonVariant
+import com.komoui.components.Button
+import com.komoui.components.ButtonVariant
+import com.shots.ui.components.SettingsRow
 import com.shots.ui.components.ShotsIcon
 import com.shots.ui.components.ShotsText
 import com.shots.ui.theme.ShotsTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -202,15 +216,24 @@ fun OnboardingScreen(onComplete: () -> Unit) {
             ) {
                 repeat(4) { index ->
                     val isSelected = pagerState.currentPage == index
+                    val reducedDots = isReducedMotion()
+                    val dotScale by animateFloatAsState(
+                        targetValue = if (reducedDots) 1f else if (isSelected) 1.25f else 1f,
+                        animationSpec = tween(MotionTokens.ColorMs, easing = MotionTokens.EaseOut),
+                        label = "dotScale"
+                    )
+                    val dotColor by animateColorAsState(
+                        targetValue = if (isSelected) ShotsTheme.colorScheme.primary
+                        else ShotsTheme.colorScheme.outline,
+                        animationSpec = tween(MotionTokens.ColorMs, easing = MotionTokens.EaseOut),
+                        label = "dotColor"
+                    )
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 4.dp)
-                            .size(if (isSelected) 10.dp else 8.dp)
-                            .background(
-                                if (isSelected) ShotsTheme.colorScheme.primary
-                                else ShotsTheme.colorScheme.outline,
-                                CircleShape
-                            )
+                            .size(8.dp)
+                            .scale(dotScale)
+                            .background(dotColor, CircleShape)
                     )
                 }
             }
@@ -223,13 +246,13 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (pagerState.currentPage < 3) {
-                    ShotsButton(
+                    Button(
                         onClick = {
                             coroutineScope.launch {
                                 pagerState.animateScrollToPage(3)
                             }
                         },
-                        variant = ShotsButtonVariant.Text
+                        variant = ButtonVariant.Ghost
                     ) {
                         ShotsText("Skip", color = ShotsTheme.colorScheme.secondary)
                     }
@@ -237,7 +260,8 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     Spacer(modifier = Modifier.width(64.dp))
                 }
 
-                ShotsButton(
+                MintCtaButton(
+                    label = if (pagerState.currentPage == 3) "Get Started" else "Next",
                     onClick = {
                         coroutineScope.launch {
                             if (pagerState.currentPage < 3) {
@@ -247,22 +271,73 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                             }
                         }
                     }
-                ) {
-                    ShotsText(
-                        if (pagerState.currentPage == 3) "Get Started" else "Next",
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                        color = ShotsTheme.colorScheme.onPrimary
-                    )
-                }
+                )
             }
         }
     }
 }
 
+private val OnboardingMint = Color(0xFFA7F3D0)
+private val OnboardingInk = Color(0xFF0F1115)
+
+@Composable
+private fun MintCtaButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) MotionTokens.PressScale else 1f,
+        animationSpec = if (pressed) tween(MotionTokens.PressMs, easing = MotionTokens.EaseOut)
+        else tween(MotionTokens.PressReleaseMs, easing = MotionTokens.EaseOut),
+        label = "ctaPress"
+    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = modifier
+            .scale(pressScale)
+            .clip(RoundedCornerShape(14.dp))
+            .background(OnboardingMint)
+            .clickable(
+                role = Role.Button,
+                indication = null,
+                interactionSource = interaction,
+                onClick = onClick
+            )
+            .padding(horizontal = 24.dp, vertical = 14.dp)
+    ) {
+        ShotsText(
+            text = label,
+            style = ShotsTheme.typography.titleMedium,
+            color = OnboardingInk
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        ShotsIcon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = null,
+            tint = OnboardingInk,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
 @Composable
 private fun WelcomePage() {
-    var scale by remember { mutableStateOf(0.5f) }
-    val animatedScale by animateFloatAsState(targetValue = scale, animationSpec = tween(durationMillis = 1000), label = "scale")
+    var scale by remember { mutableStateOf(0.96f) }
+    val reduced = isReducedMotion()
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
+        animationSpec = tween(MotionTokens.OnboardingMs, easing = MotionTokens.EaseOut),
+        label = "scale"
+    )
+    val heroAlpha by animateFloatAsState(
+        targetValue = if (scale == 1f) 1f else 0f,
+        animationSpec = tween(MotionTokens.OnboardingMs, easing = MotionTokens.EaseOut),
+        label = "heroAlpha"
+    )
     LaunchedEffect(Unit) { scale = 1f }
 
     Column(
@@ -270,16 +345,66 @@ private fun WelcomePage() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        ShotsIcon(
-            imageVector = Icons.Default.CameraAlt,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp).scale(animatedScale),
-            tint = ShotsTheme.colorScheme.primary
-        )
+        Box(
+            modifier = Modifier.size(200.dp).graphicsLayer {
+                val s = if (reduced) 1f else animatedScale
+                scaleX = s
+                scaleY = s
+                alpha = heroAlpha
+            },
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(width = 150.dp, height = 180.dp)
+                    .graphicsLayer { rotationZ = -8f }
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(ShotsTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, ShotsTheme.colorScheme.outline, RoundedCornerShape(20.dp))
+            )
+            Box(
+                modifier = Modifier
+                    .size(width = 150.dp, height = 180.dp)
+                    .graphicsLayer { rotationZ = 6f }
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(ShotsTheme.colorScheme.surface)
+                    .border(1.dp, ShotsTheme.colorScheme.outline, RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                ShotsIcon(
+                    imageVector = Icons.Default.PhotoLibrary,
+                    contentDescription = null,
+                    tint = ShotsTheme.colorScheme.secondary,
+                    modifier = Modifier.size(56.dp)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(OnboardingMint),
+                contentAlignment = Alignment.Center
+            ) {
+                ShotsIcon(
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = null,
+                    tint = OnboardingInk,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            ShotsText(
+                text = "+",
+                style = ShotsTheme.typography.titleLarge,
+                color = ShotsTheme.colorScheme.secondary,
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 8.dp)
+            )
+        }
         Spacer(modifier = Modifier.height(32.dp))
-        ShotsText("Shots", style = ShotsTheme.typography.headlineLarge, color = ShotsTheme.colorScheme.onBackground)
+        ShotsText("Capture. Keep.", style = ShotsTheme.typography.headlineLarge, color = ShotsTheme.colorScheme.onBackground, textAlign = TextAlign.Center)
+        ShotsText("Stay in control.", style = ShotsTheme.typography.headlineLarge, color = OnboardingMint, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(8.dp))
-        ShotsText("Your screenshots, your rules.", style = ShotsTheme.typography.bodyLarge, color = ShotsTheme.colorScheme.secondary, textAlign = TextAlign.Center)
+        ShotsText("Automatically manage your screenshots with ease. Keep what matters, delete what you don't, and set timers for what's temporary.", style = ShotsTheme.typography.bodyLarge, color = ShotsTheme.colorScheme.secondary, textAlign = TextAlign.Center)
     }
 }
 
@@ -300,35 +425,69 @@ private fun PermissionsPage(
         Spacer(modifier = Modifier.height(8.dp))
         ShotsText("We need a few permissions to protect your screenshots.", style = ShotsTheme.typography.bodyMedium, color = ShotsTheme.colorScheme.secondary, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(32.dp))
-        PermissionItem(icon = Icons.Default.PhotoLibrary, title = "Storage Access", granted = storageGranted, onClick = onStorageClick)
-        Spacer(modifier = Modifier.height(16.dp))
-        PermissionItem(icon = Icons.Default.Visibility, title = "Display Over Apps", granted = overlayGranted, onClick = onOverlayClick)
-        Spacer(modifier = Modifier.height(16.dp))
-        PermissionItem(icon = Icons.Default.Delete, title = "All Files Access", granted = allFilesGranted, onClick = onAllFilesClick)
-        Spacer(modifier = Modifier.height(16.dp))
-        PermissionItem(icon = Icons.Default.BatteryChargingFull, title = "Run in Background", granted = batteryWhitelisted, onClick = onBatteryClick)
-        Spacer(modifier = Modifier.height(16.dp))
-        PermissionItem(icon = Icons.Default.Notifications, title = "Notifications", granted = notificationGranted, onClick = onNotificationClick)
+        PermissionRow(icon = Icons.Default.PhotoLibrary, title = "Storage Access", subtitle = "Read screenshots", granted = storageGranted, onClick = onStorageClick)
+        Spacer(modifier = Modifier.height(8.dp))
+        PermissionRow(icon = Icons.Default.Visibility, title = "Display Over Apps", subtitle = "Show the popup", granted = overlayGranted, onClick = onOverlayClick)
+        Spacer(modifier = Modifier.height(8.dp))
+        PermissionRow(icon = Icons.Default.Delete, title = "All Files Access", subtitle = "Delete on schedule", granted = allFilesGranted, onClick = onAllFilesClick)
+        Spacer(modifier = Modifier.height(8.dp))
+        PermissionRow(icon = Icons.Default.BatteryChargingFull, title = "Run in Background", subtitle = "Detect around the clock", granted = batteryWhitelisted, onClick = onBatteryClick)
+        Spacer(modifier = Modifier.height(8.dp))
+        PermissionRow(icon = Icons.Default.Notifications, title = "Notifications", subtitle = "Timer reminders", granted = notificationGranted, onClick = onNotificationClick)
     }
 }
 
 @Composable
-private fun PermissionItem(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, granted: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().background(ShotsTheme.colorScheme.surface, RoundedCornerShape(12.dp)).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        ShotsIcon(icon, contentDescription = null, tint = ShotsTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.width(16.dp))
-        ShotsText(title, style = ShotsTheme.typography.bodyLarge, color = ShotsTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        if (granted) {
-            ShotsIcon(Icons.Default.Check, contentDescription = "Granted", tint = ShotsTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-        } else {
-            ShotsButton(onClick = onClick) {
-                ShotsText("Grant", color = ShotsTheme.colorScheme.onPrimary)
+private fun PermissionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    granted: Boolean,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val accentIndex by com.shots.data.PreferencesManager(context).accent.collectAsState(initial = 0)
+    val accent = com.shots.ui.theme.AppAccents.get(accentIndex)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) MotionTokens.PressScale else 1f,
+        animationSpec = if (pressed) tween(MotionTokens.PressMs, easing = MotionTokens.EaseOut)
+        else tween(MotionTokens.PressReleaseMs, easing = MotionTokens.EaseOut),
+        label = "grantPress"
+    )
+    SettingsRow(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        onClick = { if (!granted) onClick() },
+        trailing = {
+            if (granted) {
+                ShotsIcon(Icons.Default.Check, contentDescription = "Granted", tint = accent.bg, modifier = Modifier.size(24.dp))
+            } else {
+                Box(
+                    modifier = Modifier
+                        .scale(pressScale)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accent.bg)
+                        .clickable(
+                            role = Role.Button,
+                            indication = null,
+                            interactionSource = interaction,
+                            onClick = onClick
+                        )
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ShotsText(
+                        text = "Grant",
+                        style = ShotsTheme.typography.labelLarge,
+                        color = accent.ink
+                    )
+                }
             }
         }
-    }
+    )
 }
 
 @Composable
@@ -367,8 +526,18 @@ private fun StepItem(step: String, title: String, description: String) {
 
 @Composable
 private fun ReadyPage() {
-    var scale by remember { mutableStateOf(0.5f) }
-    val animatedScale by animateFloatAsState(targetValue = scale, animationSpec = tween(durationMillis = 1000), label = "scale")
+    var scale by remember { mutableStateOf(0.96f) }
+    val reduced = isReducedMotion()
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
+        animationSpec = tween(MotionTokens.OnboardingMs, easing = MotionTokens.EaseOut),
+        label = "scale"
+    )
+    val heroAlpha by animateFloatAsState(
+        targetValue = if (scale == 1f) 1f else 0f,
+        animationSpec = tween(MotionTokens.OnboardingMs, easing = MotionTokens.EaseOut),
+        label = "heroAlpha"
+    )
     LaunchedEffect(Unit) { scale = 1f }
 
     Column(
@@ -377,7 +546,11 @@ private fun ReadyPage() {
         verticalArrangement = Arrangement.Center
     ) {
         Box(
-            modifier = Modifier.size(120.dp).scale(animatedScale).background(ShotsTheme.colorScheme.primary, CircleShape),
+            modifier = Modifier.size(120.dp).graphicsLayer {
+                scaleX = if (reduced) 1f else animatedScale
+                scaleY = if (reduced) 1f else animatedScale
+                alpha = heroAlpha
+            }.background(ShotsTheme.colorScheme.primary, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             ShotsIcon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(60.dp), tint = ShotsTheme.colorScheme.onPrimary)

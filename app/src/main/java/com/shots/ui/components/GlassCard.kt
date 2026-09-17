@@ -14,10 +14,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import com.shots.ui.theme.GlassTokens
-import com.shots.ui.theme.ShotsTheme
 
 @Composable
-fun ShotsCard(
+fun GlassCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {

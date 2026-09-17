@@ -1,11 +1,15 @@
 package com.shots.ui.theme
 
 import android.app.Activity
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -96,6 +100,35 @@ private val LightScheme = ShotsColorScheme(
 private val LocalColorScheme = staticCompositionLocalOf { DarkScheme }
 private val LocalTypography = staticCompositionLocalOf { monoTypography() }
 
+private val ThemeEase = CubicBezierEasing(0.23f, 1f, 0.32f, 1f)
+
+@Composable
+private fun ShotsColorScheme.animated(): ShotsColorScheme {
+    // One spec for the whole palette so every token glides in lockstep, per
+    // the animateColorAsState pattern: state flip -> recomposition -> tween.
+    val spec = tween<Color>(600, easing = ThemeEase)
+    val primary by animateColorAsState(this.primary, spec, label = "themePrimary")
+    val onPrimary by animateColorAsState(this.onPrimary, spec, label = "themeOnPrimary")
+    val secondary by animateColorAsState(this.secondary, spec, label = "themeSecondary")
+    val background by animateColorAsState(this.background, spec, label = "themeBackground")
+    val onBackground by animateColorAsState(this.onBackground, spec, label = "themeOnBackground")
+    val surface by animateColorAsState(this.surface, spec, label = "themeSurface")
+    val onSurface by animateColorAsState(this.onSurface, spec, label = "themeOnSurface")
+    val surfaceVariant by animateColorAsState(this.surfaceVariant, spec, label = "themeSurfaceVariant")
+    val onSurfaceVariant by animateColorAsState(this.onSurfaceVariant, spec, label = "themeOnSurfaceVariant")
+    val outline by animateColorAsState(this.outline, spec, label = "themeOutline")
+    val outlineVariant by animateColorAsState(this.outlineVariant, spec, label = "themeOutlineVariant")
+    val error by animateColorAsState(this.error, spec, label = "themeError")
+    val onError by animateColorAsState(this.onError, spec, label = "themeOnError")
+    val success by animateColorAsState(this.success, spec, label = "themeSuccess")
+    val warning by animateColorAsState(this.warning, spec, label = "themeWarning")
+    return ShotsColorScheme(
+        primary, onPrimary, secondary, background, onBackground,
+        surface, onSurface, surfaceVariant, onSurfaceVariant,
+        outline, outlineVariant, error, onError, success, warning
+    )
+}
+
 object ShotsTheme {
     val colorScheme: ShotsColorScheme
         @Composable
@@ -119,7 +152,10 @@ fun ShotsTheme(
         2 -> false
         else -> systemDark
     }
-    val colorScheme = if (isDark) DarkScheme else LightScheme
+    // Crossfade the whole palette instead of snapping: every surface, text,
+    // outline and status color glides to its counterpart over ~600ms so theme
+    // switches (and system dark changes) flow with no pause-jump.
+    val colorScheme = (if (isDark) DarkScheme else LightScheme).animated()
 
     val view = LocalView.current
     if (!view.isInEditMode) {

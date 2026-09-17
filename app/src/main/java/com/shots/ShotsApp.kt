@@ -63,17 +63,27 @@ class ShotsApp : Application() {
         }
     }
 
-    fun trackAppOpened() {
+    // Analytics must never interrupt app flows: several popup actions track
+    // right before dismissing, so a tracking throw would strand the UI.
+    private inline fun safeTrack(tag: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            Log.e(TAG, "track failed: $tag", e)
+        }
+    }
+
+    fun trackAppOpened() = safeTrack("app_opened") {
         mixpanel.track("App Opened")
         mixpanel.flush()
     }
 
-    fun trackScreenshotDetected() {
+    fun trackScreenshotDetected() = safeTrack("detected") {
         mixpanel.track("Screenshot Detected")
         mixpanel.flush()
     }
 
-    fun trackScreenshotAction(action: String, source: String = "notification") {
+    fun trackScreenshotAction(action: String, source: String = "notification") = safeTrack("action:$action") {
         val props = JSONObject().apply {
             put("action", action)
             put("source", source)
@@ -82,12 +92,12 @@ class ShotsApp : Application() {
         mixpanel.flush()
     }
 
-    fun trackOnboardingCompleted() {
+    fun trackOnboardingCompleted() = safeTrack("onboarding") {
         mixpanel.track("Onboarding Completed")
         mixpanel.flush()
     }
 
-    fun trackScreenView(screenName: String) {
+    fun trackScreenView(screenName: String) = safeTrack("screen:$screenName") {
         val props = JSONObject().apply {
             put("screen_name", screenName)
         }
@@ -95,7 +105,7 @@ class ShotsApp : Application() {
         mixpanel.flush()
     }
 
-    fun trackSettingChanged(setting: String, value: Any) {
+    fun trackSettingChanged(setting: String, value: Any) = safeTrack("setting:$setting") {
         val props = JSONObject().apply {
             put("setting", setting)
             put("value", value)

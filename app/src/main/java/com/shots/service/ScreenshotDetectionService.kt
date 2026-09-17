@@ -18,11 +18,13 @@ import android.provider.MediaStore
 import android.util.Log
 import com.shots.MainActivity
 import com.shots.ShotsApp
+import com.shots.data.ScreenshotDatabase
 import com.shots.util.DeleteSuppressor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class ScreenshotDetectionService : Service() {
     private var contentObserver: ContentObserver? = null
@@ -179,50 +181,66 @@ class ScreenshotDetectionService : Service() {
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastScreenshotTime < 3000) return
 
-                try {
-                    val projection = arrayOf(
-                        MediaStore.Images.Media.DATA,
-                        MediaStore.Images.Media.DISPLAY_NAME,
-                        MediaStore.Images.Media.DATE_ADDED
-                    )
+                // Heavy lifting off the main thread: MediaStore + file + DB checks.
+                serviceScope.launch {
+                    try {
+                        val projection = arrayOf(
+                            MediaStore.Images.Media.DATA,
+                            MediaStore.Images.Media.DISPLAY_NAME,
+                            MediaStore.Images.Media.DATE_ADDED
+                        )
 
-                    contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
-                            val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+                        contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val pathIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                                val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
 
-                            if (pathIndex >= 0) {
-                                var path = cursor.getString(pathIndex) ?: return
-                                val dateAdded = if (dateIndex >= 0) cursor.getLong(dateIndex) else 0L
+                                if (pathIndex >= 0) {
+                                    var path = cursor.getString(pathIndex) ?: return@launch
+                                    val dateAdded = if (dateIndex >= 0) cursor.getLong(dateIndex) else 0L
 
-                                // Never trigger on staging/trash/pending entries
-                                if (isPendingPath(path)) return
-                                if (isTrashPath(path)) return
-                                if (DeleteSuppressor.isSuppressed(path)) {
-                                    Log.d(TAG, "Ignoring app-handled change: $path")
-                                    return
-                                }
+                                    // Never trigger on staging/trash/pending entries
+                                    if (isPendingPath(path)) return@launch
+                                    if (isTrashPath(path)) return@launch
+                                    if (DeleteSuppressor.isSuppressed(path)) {
+                                        Log.d(TAG, "Ignoring app-handled change: $path")
+                                        return@launch
+                                    }
 
-                                // Resolve the real path (strip stale staging prefix if present)
-                                path = com.shots.util.MediaStoreUtils.cleanPath(path)
+                                    // Resolve the real path (strip stale staging prefix if present)
+                                    path = com.shots.util.MediaStoreUtils.cleanPath(path)
 
-                                val file = java.io.File(path)
-                                if (!file.exists()) return
+                                    val file = java.io.File(path)
+                                    if (!file.exists()) return@launch
 
-                                // Strict check: must be a real screenshot AND recently added
-                                val isScreenshot = isScreenshotPath(path)
-                                val isRecent = dateAdded * 1000L > currentTime - 10000
+                                    // Strict check: must be a real screenshot AND recently added
+                                    val isScreenshot = isScreenshotPath(path)
+                                    val isRecent = dateAdded * 1000L > currentTime - 10000
+                                    if (!isScreenshot || !isRecent) return@launch
 
-                                if (isScreenshot && isRecent) {
+                                    // Already managed (kept/timed/edited before)? Never re-popup.
+                                    // This kills the edit-in-file-manager loop: re-saves of a
+                                    // known path resolve to the existing row and stay silent.
+                                    val known = try {
+                                        ScreenshotDatabase.getInstance(this@ScreenshotDetectionService)
+                                            .screenshotDao().getByPath(path)
+                                    } catch (_: Exception) {
+                                        null
+                                    }
+                                    if (known != null) {
+                                        Log.d(TAG, "Ignoring already-managed screenshot: $path")
+                                        return@launch
+                                    }
+
                                     lastScreenshotTime = currentTime
                                     (application as? ShotsApp)?.trackScreenshotDetected()
                                     launchOverlay(path)
                                 }
                             }
                         }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error checking for screenshot", e)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error checking for screenshot", e)
                 }
             }
         }

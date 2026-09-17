@@ -58,6 +58,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    lint {
+        // AGP 8.7.3 lint crashes internally on Kotlin 2.2 UAST
+        // (NonNullableMutableLiveDataDetector) — not our code. Skip it.
+        checkReleaseBuilds = false
+    }
 }
 
 dependencies {
@@ -84,6 +90,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.mixpanel.android:mixpanel-android:7.0.0")
+    implementation("org.jetbrains.compose.material3:material3:1.9.0")
+    implementation("io.github.derangga:komoui:0.4.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

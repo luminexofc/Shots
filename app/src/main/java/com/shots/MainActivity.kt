@@ -7,7 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.shots.data.PreferencesManager
 import com.shots.ui.main.MainScreen
-import com.shots.ui.theme.ShotsTheme
+import com.shots.ui.theme.ShotsKomoTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val darkMode by prefs.darkMode.collectAsState(initial = 0)
-            ShotsTheme(darkMode = darkMode) {
+            ShotsKomoTheme(darkMode = darkMode) {
                 MainScreen()
             }
         }

@@ -13,7 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.shots.data.PreferencesManager
 import com.shots.ui.onboarding.OnboardingScreen
-import com.shots.ui.theme.ShotsTheme
+import com.shots.ui.theme.ShotsKomoTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -39,7 +39,7 @@ class OnboardingActivity : ComponentActivity() {
         setContent {
             if (!isLoading) {
                 val darkMode by prefs.darkMode.collectAsState(initial = 0)
-                ShotsTheme(darkMode = darkMode) {
+                ShotsKomoTheme(darkMode = darkMode) {
                     OnboardingScreen(
                         onComplete = {
                             lifecycleScope.launch {

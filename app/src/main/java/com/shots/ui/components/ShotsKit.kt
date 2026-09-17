@@ -1,11 +1,13 @@
 package com.shots.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -25,16 +27,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.shots.ui.theme.ShotsTheme
+import kotlin.math.roundToInt
 
 
 enum class ShotsButtonVariant { Filled, Outline, Text }
@@ -68,8 +75,18 @@ fun ShotsButton(
             contentColor = if (destructive) colors.error else colors.secondary
         }
     }
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val reduced = isReducedMotion()
+    val pressScale by animateFloatAsState(
+        targetValue = if (reduced) 1f else if (pressed) MotionTokens.PressScale else 1f,
+        animationSpec = if (pressed) tween(MotionTokens.PressMs, easing = MotionTokens.EaseOut)
+        else tween(MotionTokens.PressReleaseMs, easing = MotionTokens.EaseOut),
+        label = "btnPress"
+    )
     Box(
         modifier = modifier
+            .scale(pressScale)
             .clip(RoundedCornerShape(12.dp))
             .background(container.copy(alpha = if (enabled) 1f else 0.5f))
             .then(borderMod)
@@ -77,7 +94,7 @@ fun ShotsButton(
                 enabled = enabled,
                 role = Role.Button,
                 indication = null,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 onClick = onClick
             )
             .padding(contentPadding)
@@ -126,14 +143,22 @@ fun ShotsSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    activeColor: Color = ShotsTheme.colorScheme.primary
 ) {
     val colors = ShotsTheme.colorScheme
-    val thumbOffset by animateDpAsState(
-        targetValue = if (checked) 20.dp else 0.dp
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val thumbPx = with(density) { 20.dp.toPx() }
+    val reducedSwitch = isReducedMotion()
+    val thumbOffsetPx by animateFloatAsState(
+        targetValue = if (reducedSwitch) 0f else if (checked) thumbPx else 0f,
+        animationSpec = tween(MotionTokens.SwitchMs, easing = MotionTokens.EaseOut),
+        label = "switchThumb"
     )
     val trackColor by androidx.compose.animation.animateColorAsState(
-        targetValue = if (checked) colors.primary else colors.outline
+        targetValue = if (checked) activeColor else colors.outline,
+        animationSpec = tween(MotionTokens.ColorMs, easing = MotionTokens.EaseOut),
+        label = "switchTrack"
     )
     Box(
         modifier = modifier
@@ -152,7 +177,7 @@ fun ShotsSwitch(
     ) {
         Box(
             modifier = Modifier
-                .offset(x = thumbOffset)
+                .graphicsLayer { translationX = thumbOffsetPx }
                 .size(27.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(Color.White)
@@ -166,7 +191,8 @@ fun ShotsSlider(
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-    onValueChangeFinished: (() -> Unit)? = null
+    onValueChangeFinished: (() -> Unit)? = null,
+    activeColor: Color = ShotsTheme.colorScheme.primary
 ) {
     val colors = ShotsTheme.colorScheme
     androidx.compose.foundation.layout.BoxWithConstraints(
@@ -182,6 +208,13 @@ fun ShotsSlider(
             onValueChange(valueRange.start + fraction * (valueRange.endInclusive - valueRange.start))
         }
         var dragValue by remember(valueRange) { mutableStateOf(value) }
+        var thumbActive by remember { mutableStateOf(false) }
+        val reducedSlider = isReducedMotion()
+        val thumbScale by animateFloatAsState(
+            targetValue = if (reducedSlider) 1f else if (thumbActive) 1.25f else 1f,
+            animationSpec = tween(MotionTokens.ColorMs, easing = MotionTokens.EaseOut),
+            label = "sliderThumb"
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -189,15 +222,17 @@ fun ShotsSlider(
                 .pointerInput(valueRange, widthPx) {
                     detectTapGestures(
                         onPress = {
+                            thumbActive = true
                             setFromX(it.x)
                             tryAwaitRelease()
+                            thumbActive = false
                             onValueChangeFinished?.invoke()
                         }
                     )
                 }
                 .pointerInput(valueRange, widthPx) {
                     detectHorizontalDragGestures(
-                        onDragStart = { dragValue = value },
+                        onDragStart = { dragValue = value; thumbActive = true },
                         onHorizontalDrag = { _, dragAmount ->
                             val fraction =
                                 ((dragValue - valueRange.start) / (valueRange.endInclusive - valueRange.start) + dragAmount / widthPx)
@@ -206,7 +241,8 @@ fun ShotsSlider(
                                 valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
                             onValueChange(dragValue)
                         },
-                        onDragEnd = { onValueChangeFinished?.invoke() }
+                        onDragEnd = { thumbActive = false; onValueChangeFinished?.invoke() },
+                        onDragCancel = { thumbActive = false }
                     )
                 },
             contentAlignment = Alignment.CenterStart
@@ -225,20 +261,98 @@ fun ShotsSlider(
                     .fillMaxWidth(fraction.coerceAtLeast(0.02f))
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(colors.primary)
+                    .background(activeColor)
             )
-            androidx.compose.foundation.Canvas(
+            androidx.compose.foundation.layout.BoxWithConstraints(
                 modifier = Modifier.fillMaxWidth().height(32.dp)
             ) {
-                val cx = fraction * size.width
-                val r = 14.dp.toPx() / 2
-                drawCircle(
-                    color = colors.primary,
-                    radius = r,
-                    center = androidx.compose.ui.geometry.Offset(
-                        cx.coerceIn(r, size.width - r),
-                        size.height / 2
+                val thumbR = 7.dp
+                val maxX = maxWidth - thumbR * 2
+                val thumbX = maxX * fraction
+                Box(
+                    modifier = Modifier
+                        .offset(x = thumbX)
+                        .graphicsLayer { scaleX = thumbScale; scaleY = thumbScale }
+                        .size(14.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(activeColor)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AccentSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    accent: Color = ShotsTheme.colorScheme.primary,
+    track: Color = ShotsTheme.colorScheme.surfaceVariant
+) {
+    BoxWithConstraints(
+        modifier = modifier.height(48.dp)
+    ) {
+        val widthPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+            maxWidth.toPx()
+        }
+        fun setFromX(x: Float) {
+            onValueChange((x / widthPx).coerceIn(0f, 1f))
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .pointerInput(widthPx) {
+                    detectTapGestures(onPress = {
+                        setFromX(it.x)
+                        tryAwaitRelease()
+                    })
+                }
+                .pointerInput(widthPx) {
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            setFromX(change.position.x)
+                        }
                     )
+                },
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(track)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(value.coerceIn(0f, 1f).coerceAtLeast(0.02f))
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(accent)
+            )
+            Box(
+                modifier = Modifier
+                    .offset {
+                        val fraction = value.coerceIn(0f, 1f)
+                        IntOffset(
+                            ((fraction * (widthPx - 28.dp.toPx()))).roundToInt(),
+                            0
+                        )
+                    }
+                    .size(28.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color.White)
+                    .border(2.dp, accent, androidx.compose.foundation.shape.CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(accent)
                 )
             }
         }
@@ -320,14 +434,24 @@ fun ShotsIconButton(
     enabled: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val reduced = isReducedMotion()
+    val pressScale by animateFloatAsState(
+        targetValue = if (reduced) 1f else if (pressed) MotionTokens.PressScale else 1f,
+        animationSpec = if (pressed) tween(MotionTokens.PressMs, easing = MotionTokens.EaseOut)
+        else tween(MotionTokens.PressReleaseMs, easing = MotionTokens.EaseOut),
+        label = "iconBtnPress"
+    )
     Box(
         modifier = modifier
+            .scale(pressScale)
             .clip(RoundedCornerShape(8.dp))
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
                 indication = null,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 onClick = onClick
             )
             .padding(8.dp),

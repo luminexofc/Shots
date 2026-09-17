@@ -4,493 +4,229 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Shots — Screenshot Manager for Android</title>
-<meta name="description" content="A popup the instant you screenshot. Keep, delete, set a timer, or skip — your gallery stays clean. Verified deletion, exact timers, Android 8.0+.">
+<meta name="description" content="A popup the instant you screenshot. Swipe right to keep, left to delete, up for a timer, down to snooze — your gallery stays clean. Android 8.0+.">
 <link rel="icon" type="image/x-icon" sizes="48x48" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-180.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Shots%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22icon-192.png%22%2C%22sizes%22%3A%22192x192%22%7D%2C%7B%22src%22%3A%22icon-512.png%22%2C%22sizes%22%3A%22512x512%22%7D%5D%7D">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ============ tokens (Mono Ink, inverted) ============ */
+/* ============ tokens (match the app: zinc surfaces, mint accent) ============ */
 :root{
+  --bg:#0A0A0A;
+  --surface:#141414;
+  --surface2:#1F232B;
+  --border:rgba(250,250,250,.12);
   --fg:#FAFAFA;
-  --fg-soft:rgba(250,250,250,.64);
-  --fg-faint:rgba(250,250,250,.48);
-  --shade:#0A0A0A;
-  --rule:rgba(250,250,250,.16);
-  --ease:cubic-bezier(.22,.61,.36,1);
-  --pill-bg:#FAFAFA;
-  --pill-fg:#0A0A0A;
-  --accent:#EF4444;
+  --soft:#A1A1AA;
+  --faint:rgba(250,250,250,.48);
+  --mint:#A7F3D0;
+  --ink:#0F1115;
+  --green:#22C55E;
+  --red:#EF4444;
+  --r-card:20px;
+  --r-row:14px;
+  --ease:cubic-bezier(.23,1,.32,1);
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html{-webkit-text-size-adjust:100%;scroll-behavior:auto;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
 body{
-  background:var(--shade);color:var(--fg);
+  background:var(--bg);color:var(--fg);
+  background-image:radial-gradient(rgba(250,250,250,.05) 1px, transparent 1px);
+  background-size:48px 48px;
   font-family:'Inter Tight','Helvetica Neue',Helvetica,Arial,sans-serif;
   font-weight:400;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
-  overflow-x:hidden;
+  overflow-x:hidden;line-height:1.5;
 }
+::selection{background:var(--mint);color:var(--ink);}
+.wrap{max-width:1080px;margin:0 auto;padding:0 clamp(20px,5vw,44px);}
 
-/* ============ preloader ============ */
-.boot{
-  position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:16px;background:var(--shade);
-  transition:opacity .7s var(--ease),visibility .7s;
-}
-.boot.done{opacity:0;visibility:hidden;}
-.boot p{font-size:12.5px;letter-spacing:.05em;color:var(--fg-faint);}
-.bar{width:150px;height:1px;background:var(--rule);overflow:hidden;}
-.bar i{display:block;height:100%;width:100%;background:var(--fg);transform:scaleX(0);transform-origin:0 50%;}
-
-/* ============ fixed stage (canvas replaces video) ============ */
-.stage{position:fixed;inset:0;z-index:0;overflow:hidden;background:var(--shade);}
-.stage canvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block;}
-.veil{position:absolute;inset:0;pointer-events:none;
-  background:
-    linear-gradient(to bottom, rgba(10,10,10,.62) 0%, rgba(10,10,10,.12) 22%, rgba(10,10,10,.12) 78%, rgba(10,10,10,.66) 100%),
-    radial-gradient(100% 80% at 50% 48%, rgba(10,10,10,0) 0%, rgba(10,10,10,.34) 100%),
-    rgba(10,10,10,.20);
-}
-.grain{position:absolute;inset:-50%;opacity:.10;mix-blend-mode:screen;pointer-events:none;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.5'/></svg>");
-}
-
-/* ============ scroll meter ============ */
-.meter{position:fixed;top:0;left:0;z-index:50;height:2px;width:100%;
-  transform:scaleX(0);transform-origin:0 50%;background:var(--fg);opacity:.55;}
-
-/* ============ chrome (fixed header) ============ */
-.chrome{position:fixed;left:0;right:0;top:0;z-index:40;display:flex;
-  align-items:center;justify-content:space-between;gap:12px;
-  padding:max(14px, calc(env(safe-area-inset-top, 0px) + 12px)) clamp(16px, 3.4vw, 44px) 14px;
-  background:linear-gradient(to bottom, rgba(10,10,10,.94) 0%, rgba(10,10,10,.78) 72%, rgba(10,10,10,0) 100%);
-}
-.mark{display:flex;align-items:center;gap:9px;font-size:15px;letter-spacing:-.012em;
-  color:var(--fg);min-width:0;flex-shrink:1;}
-.mark-star{opacity:.85;width:24px;height:24px;border-radius:6px;flex-shrink:0;display:inline-block;}
-.nav{display:flex;align-items:center;gap:clamp(14px, 2.4vw, 32px);flex-shrink:0;}
-.nav a:not(.pill){color:var(--fg);text-decoration:none;font-size:14.5px;letter-spacing:-.008em;
-  opacity:.88;transition:opacity .3s var(--ease);}
+/* ============ header ============ */
+.chrome{position:sticky;top:0;z-index:40;
+  background:rgba(10,10,10,.86);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);}
+.chrome-in{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding-top:max(12px, env(safe-area-inset-top, 0px));padding-bottom:12px;}
+.mark{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600;letter-spacing:-.012em;color:var(--fg);}
+.mark img{width:26px;height:26px;border-radius:7px;display:block;}
+.nav{display:flex;align-items:center;gap:clamp(14px,2.4vw,30px);}
+.nav a:not(.pill){color:var(--fg);text-decoration:none;font-size:14.5px;opacity:.75;transition:opacity .2s var(--ease);}
 .nav a:not(.pill):hover{opacity:1;}
-.pill{display:inline-flex;align-items:center;justify-content:center;height:40px;
-  padding:0 21px;border-radius:999px;background:var(--pill-bg);color:var(--pill-fg);
-  font-size:14.5px;font-weight:500;letter-spacing:-.008em;text-decoration:none;
-  white-space:nowrap;opacity:1;border:1px solid rgba(250,250,250,.12);
-  box-shadow:0 1px 0 rgba(255,255,255,.10) inset;
-  -webkit-text-fill-color:var(--pill-fg);
-  transition:transform .4s var(--ease),background .3s var(--ease),color .3s var(--ease);}
-.nav .pill{color:#0A0A0A;-webkit-text-fill-color:#0A0A0A;}
-.pill:hover,.pill:focus-visible{transform:translateY(-2px);background:#ffffff;color:#0A0A0A;
-  -webkit-text-fill-color:#0A0A0A;}
-.pill:focus-visible{outline:2px solid var(--fg);outline-offset:2px;}
+.pill{display:inline-flex;align-items:center;justify-content:center;min-height:44px;
+  padding:0 24px;border-radius:999px;background:var(--mint);color:var(--ink);
+  font-size:15px;font-weight:600;letter-spacing:-.008em;text-decoration:none;white-space:nowrap;
+  border:none;transition:transform .25s var(--ease),background .25s var(--ease);}
+.pill:hover{transform:translateY(-2px);background:#c2f7de;}
+.pill:focus-visible{outline:2px solid var(--mint);outline-offset:3px;}
+.nav .pill{min-height:40px;padding:0 20px;font-size:14px;}
+
+/* ============ hero ============ */
+.hero{padding:clamp(56px,10vh,120px) 0 clamp(44px,7vh,80px);text-align:center;}
+.hero .sub{margin-left:auto;margin-right:auto;}
+.hero .cta-row{justify-content:center;}
+.hero h1{margin-left:auto;margin-right:auto;}
+.eyebrow{font-size:12.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--soft);margin-bottom:18px;text-align:center;}
+.eyebrow b{color:var(--mint);font-weight:600;}
+h1{font-weight:700;font-size:clamp(38px,6.4vw,76px);line-height:1.02;letter-spacing:-.03em;text-wrap:balance;}
+h1 .mint{color:var(--mint);}
+.sub{margin-top:20px;font-size:clamp(15.5px,1.6vw,18.5px);line-height:1.55;color:var(--soft);max-width:44ch;text-wrap:pretty;}
+.cta-row{margin-top:32px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.meta{margin-top:16px;font-size:12.5px;letter-spacing:.02em;color:var(--faint);text-align:center;}
+
+/* ============ sections ============ */
+section.block{padding:clamp(44px,7vh,84px) 0;}
+h2{font-weight:700;font-size:clamp(26px,3.6vw,40px);letter-spacing:-.025em;text-wrap:balance;}
+.lede{margin-top:12px;color:var(--soft);font-size:clamp(15px,1.5vw,17.5px);max-width:60ch;}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);padding:22px 20px;}
+.card .ic{width:42px;height:42px;border-radius:12px;background:var(--surface2);
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-style:normal;margin-bottom:14px;}
+.card h3{font-size:16.5px;font-weight:600;letter-spacing:-.01em;margin-bottom:6px;}
+.card p{font-size:14px;line-height:1.55;color:var(--soft);}
+.card p b{color:var(--mint);font-weight:600;}
+.supp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:28px;}
+.supp a{color:inherit;text-decoration:none;display:block;transition:transform .25s var(--ease),border-color .25s var(--ease);}
+.supp a:hover{transform:translateY(-2px);border-color:rgba(167,243,208,.4);}
+.supp .go{color:var(--mint);font-size:14px;font-weight:600;margin-top:10px;display:inline-block;}
 
 /* ============ footer ============ */
-.foot{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;justify-content:center;
-  padding:14px clamp(16px, 4vw, 24px) max(16px, calc(env(safe-area-inset-bottom, 0px) + 12px));
-  font-size:12px;line-height:1.45;letter-spacing:.02em;color:var(--fg-faint);
-  text-align:center;pointer-events:none;
-  background:linear-gradient(to top, rgba(10,10,10,.92) 0%, rgba(10,10,10,.72) 72%, rgba(10,10,10,0) 100%);
-}
+footer{border-top:1px solid var(--border);margin-top:clamp(20px,4vh,40px);}
+.foot-in{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  padding-top:22px;padding-bottom:max(22px, env(safe-area-inset-bottom, 0px));
+  font-size:12.5px;color:var(--faint);}
+.foot-in a{color:var(--soft);text-decoration:none;} .foot-in a:hover{color:var(--mint);}
 
-/* ============ panel layer ============ */
-.panels{position:fixed;inset:0;z-index:20;pointer-events:none;}
-.panel{position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;text-align:center;
-  padding:max(104px, calc(env(safe-area-inset-top, 0px) + 88px)) clamp(20px, 5vw, 60px) max(96px, calc(env(safe-area-inset-bottom, 0px) + 80px));
-  opacity:0;will-change:opacity,transform;}
-.eyebrow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
-  gap:6px 12px;font-size:12.5px;letter-spacing:.045em;color:var(--fg-soft);
-  margin-bottom:clamp(16px,2vw,22px);max-width:min(46ch, 100%);text-align:center;}
-h1{font-weight:400;font-size:clamp(34px, 7.1vw, 104px);line-height:.98;
-  letter-spacing:-.036em;max-width:15ch;text-wrap:balance;}
-.sub{margin-top:clamp(18px,2.2vw,28px);font-size:clamp(15px,1.28vw,19px);
-  line-height:1.5;letter-spacing:-.008em;color:var(--fg-soft);
-  max-width:min(46ch, 100%);text-wrap:pretty;}
-.cta{margin-top:clamp(28px,3.4vw,44px);pointer-events:auto;width:100%;
-  display:flex;justify-content:center;}
-.cta .pill{height:48px;padding:0 27px;font-size:15px;max-width:min(100%, 320px);}
-.cta small{display:block;width:100%;margin-top:20px;font-size:11.5px;letter-spacing:.03em;
-  color:var(--fg-faint);text-align:center;}
-
-/* ============ scroll track — sole page height ============ */
-.track{position:relative;z-index:1;height:560vh;min-height:3200px;}
+/* ============ reveal ============ */
+.rv{opacity:0;transform:translateY(22px);transition:opacity .7s var(--ease),transform .7s var(--ease);}
+.rv.in{opacity:1;transform:none;}
 
 /* ============ reduced motion ============ */
 @media (prefers-reduced-motion: reduce){
-  .boot{transition:none;}
-  .panel{transform:none !important;}
-  .veil,.grain{animation:none;}
+  html{scroll-behavior:auto;}
+  .rv{opacity:1;transform:none;transition:none;}
+  .pill,.supp a{transition:none;}
 }
 
-/* ============ breakpoints (reference order) ============ */
+/* ============ breakpoints ============ */
 @media (max-width:900px){
-  .veil{background:
-    linear-gradient(to bottom, rgba(10,10,10,.72) 0%, rgba(10,10,10,.18) 24%, rgba(10,10,10,.18) 76%, rgba(10,10,10,.74) 100%),
-    radial-gradient(100% 80% at 50% 48%, rgba(10,10,10,0) 0%, rgba(10,10,10,.40) 100%),
-    rgba(10,10,10,.24);}
+  .grid4{grid-template-columns:1fr 1fr;}
+  .grid3{grid-template-columns:1fr;}
+  .supp{grid-template-columns:1fr;}
 }
-@media (max-width:720px){
+@media (max-width:760px){
+  .hero{padding-top:40px;}
   .nav a:not(.pill){display:none;}
-  .mark{font-size:14px;}
-  .nav .pill{height:38px;padding:0 16px;font-size:13.5px;}
-  h1{max-width:12ch;font-size:clamp(30px, 9.8vw, 52px);}
-  .sub{font-size:15px;max-width:34ch;}
-  .panel{padding:max(92px, calc(env(safe-area-inset-top, 0px) + 76px)) 18px max(88px, calc(env(safe-area-inset-bottom, 0px) + 72px));}
-  .foot{font-size:11px;max-width:34ch;margin-left:auto;margin-right:auto;}
 }
 @media (max-width:420px){
-  .mark-star{width:20px;height:20px;border-radius:5px;}
-  .nav .pill{height:36px;padding:0 14px;font-size:13px;}
-  h1{max-width:11ch;font-size:clamp(28px, 10.5vw, 40px);}
-  .eyebrow{font-size:11px;letter-spacing:.04em;max-width:28ch;}
-  .cta .pill{width:100%;max-width:280px;height:44px;padding:0 20px;font-size:14px;}
-}
-@media (max-height:520px) and (orientation:landscape){
-  .panel{padding:max(72px, calc(env(safe-area-inset-top, 0px) + 56px)) 24px max(64px, calc(env(safe-area-inset-bottom, 0px) + 48px));}
-  h1{font-size:clamp(28px, 8vh, 44px);}
-  .sub{margin-top:12px;font-size:14px;}
-  .cta{margin-top:16px;}
+  .grid4{grid-template-columns:1fr;}
+  .nav .pill{min-height:38px;padding:0 16px;font-size:13.5px;}
 }
 </style>
 </head>
 <body>
 
-<!-- preloader -->
-<div class="boot" id="boot">
-  <div class="bar"><i id="bootBar"></i></div>
-  <p id="bootPct">LOADING 0%</p>
-</div>
-
-<!-- fixed stage: canvas animation replaces the reference's scrubbed video -->
-<div class="stage">
-  <canvas id="scene"></canvas>
-  <div class="veil"></div>
-  <div class="grain"></div>
-</div>
-
-<i class="meter" id="meter"></i>
-
-<!-- chrome -->
 <header class="chrome">
-   <div class="mark"><img class="mark-star" src="icon-180.png" alt="" aria-hidden="true">&nbsp;Shots</div>
-  <nav class="nav">
-    <a href="#popup">The popup</a>
-    <a href="#promise">The promise</a>
-    <a class="pill" href="Shots-v1.0.0.apk" download>Download APK</a>
-  </nav>
+  <div class="wrap chrome-in">
+    <div class="mark"><img src="icon-180.png" alt="Shots app icon">Shots</div>
+    <nav class="nav" aria-label="Page">
+      <a href="#gestures">Gestures</a>
+      <a href="#features">Features</a>
+      <a href="#support">Support</a>
+      <a class="pill" href="Shots-v1.0.2.apk" download>Download</a>
+    </nav>
+  </div>
 </header>
 
-<!-- panels: cross-faded by the rAF engine, never by CSS transitions -->
-<main class="panels">
-  <section class="panel" data-panel>
-    <p class="eyebrow">Screenshot manager <span>&middot;</span> Android 8.0+</p>
-    <h1>Take the shot.<br />Skip the clutter.</h1>
-    <p class="sub">A popup the instant you screenshot. Four choices, one tap — your gallery stays clean.</p>
-    <div class="cta">
-      <a class="pill" href="Shots-v1.0.0.apk" download>Download APK</a>
+<main class="wrap">
+  <!-- hero -->
+  <div class="hero">
+    <div>
+      <p class="eyebrow">Screenshot manager <b>&middot;</b> Android 8.0+</p>
+      <h1>Capture. Keep.<br><span class="mint">Stay in control.</span></h1>
+      <p class="sub">A popup the instant you screenshot. Swipe right to keep, left to delete, up for a timer, down to snooze — your gallery stays clean.</p>
+      <div class="cta-row">
+        <a class="pill" href="Shots-v1.0.2.apk" download>Download APK</a>
+      </div>
+      <p class="meta">v1.0.2 &middot; 16.4 MB &middot; signed &middot; no accounts, no ads</p>
     </div>
-    <small style="pointer-events:none;display:block;margin-top:20px;">v1.0.0 &middot; 13.7 MB &middot; signed</small>
+  </div>
+
+  <!-- gestures -->
+  <section class="block rv" id="gestures">
+    <h2>One popup, four flicks.</h2>
+    <p class="lede">No menus to dig through. The screenshot appears, your thumb decides, the gallery obeys.</p>
+    <div class="grid4">
+      <div class="card"><div class="ic" aria-hidden="true">&rarr;</div><h3>Swipe right &mdash; Keep</h3><p>File stays, timers cancelled, popup gone. <b>Green</b> wash confirms it.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&larr;</div><h3>Swipe left &mdash; Delete</h3><p>Moves to a 5-second <b>Undo</b> window, then verified deletion. Nothing silent.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&uarr;</div><h3>Swipe up &mdash; Timer</h3><p>Preset chips and a slider, 5 minutes to 24 hours. Fires <b>exact</b>, even in Doze.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&darr;</div><h3>Pull down &mdash; Snooze</h3><p>Not now, later. A reminder returns instead of a deletion.</p></div>
+    </div>
   </section>
 
-  <section class="panel" data-panel id="popup">
-    <p class="eyebrow">The popup</p>
-    <h1>Keep. Delete.<br />Timer. Skip.</h1>
-    <p class="sub">Deletion timers fire at the exact minute — even in Doze, even with the screen off. Reboot-proof, rescheduled after every restart.</p>
-    <div class="cta">
-      <a class="pill" href="Shots-v1.0.0.apk" download>Download APK</a>
+  <!-- features -->
+  <section class="block rv" id="features">
+    <h2>Built like a utility, finished like a product.</h2>
+    <p class="lede">The same tokens as the app: zinc surfaces, 20px cards, one mint accent, zero glow.</p>
+    <div class="grid3">
+      <div class="card"><div class="ic" aria-hidden="true">&#9201;</div><h3>Exact timers</h3><p>Alarms fire at the minute, survive Doze and reboots, reschedule after every restart.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&#10003;</div><h3>Verified deletion</h3><p>Every delete is confirmed at file level before it's marked done. No ghosts.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&#9776;</div><h3>History + filters</h3><p>Every shot listed with status, countdowns, and one-tap cancel or extend.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&#9681;</div><h3>Themes + accents</h3><p>System, dark, or light — with five accent colors across popup, tabs, and nav.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&#128274;</div><h3>Private by design</h3><p>No accounts, no analytics on your shots, everything on-device.</p></div>
     </div>
-    <small style="pointer-events:none;display:block;margin-top:20px;">No ads &middot; no accounts &middot; MIT licensed</small>
   </section>
 
-  <section class="panel" data-panel id="promise">
-    <p class="eyebrow">The promise</p>
-    <h1>Deleted means<br />deleted.</h1>
-    <p class="sub">Every deletion is verified at the file level before it's marked done. No ghosts. No trash-folder surprises. No staging-path lies.</p>
-    <div class="cta">
-      <a class="pill" href="Shots-v1.0.0.apk" download>Download APK</a>
+  <!-- support -->
+  <section class="block rv" id="support">
+    <h2>Found a bug? Tell us.</h2>
+    <p class="lede">Mail includes your app version and phone model automatically when sent from the app.</p>
+    <div class="supp">
+      <a class="card" href="mailto:luminexofc@gmail.com?subject=Shots%20bug%20report">
+        <div class="ic" aria-hidden="true">&#9993;</div>
+        <h3>Report a bug</h3>
+        <p>luminexofc@gmail.com — describe what happened and what you expected.</p>
+        <span class="go">Write mail &rarr;</span>
+      </a>
+      <a class="card" href="https://www.supportkori.com/luminex">
+        <div class="ic" aria-hidden="true">&hearts;</div>
+        <h3>Support Shots</h3>
+        <p>Donations keep the app alive and ad-free. Every bit helps.</p>
+        <span class="go">Donate &rarr;</span>
+      </a>
     </div>
-    <small style="pointer-events:none;display:block;margin-top:20px;">Kotlin &middot; Jetpack Compose &middot; Material 3</small>
   </section>
 </main>
 
-<footer class="foot">Kotlin &nbsp;&middot;&nbsp; Jetpack Compose &nbsp;&middot;&nbsp; Android 8.0+ &nbsp;&middot;&nbsp; MIT</footer>
-
-<!-- the only thing that gives the page height -->
-<div class="track"></div>
+<footer>
+  <div class="wrap foot-in">
+    <span>Shots v1.0.2 &middot; MIT &middot; Kotlin &middot; Jetpack Compose</span>
+    <span><a href="mailto:luminexofc@gmail.com">luminexofc@gmail.com</a></span>
+  </div>
+</footer>
 
 <script>
 (function(){ "use strict";
-
-/* ============ refs ============ */
-var scene = document.getElementById("scene");
-var ctx = scene.getContext("2d");
-var boot = document.getElementById("boot");
-var bootBar = document.getElementById("bootBar");
-var bootPct = document.getElementById("bootPct");
-var meter = document.getElementById("meter");
-var panels = [].slice.call(document.querySelectorAll("[data-panel]"));
 var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/* ============ scroll engine (same math as the video-scrub reference) ============ */
-/* Each panel owns [fadeInStart, fadeInEnd, fadeOutStart, fadeOutEnd] in 0..1 progress.
-   The gaps between one panel's fadeOutEnd and the next's fadeInStart are deliberate
-   dead zones — background only — so two panels are never readable at once. */
-var CUES = [
-  [0.00, 0.00, 0.15, 0.23],
-  [0.35, 0.43, 0.57, 0.65],
-  [0.77, 0.85, 1.10, 1.20]
-];
-var DRIFT = 22; /* px of counter-scroll travel per panel */
-
-function clamp(v,a,b){ return v < a ? a : (v > b ? b : v); }
-function smooth(t){ return t*t*(3-2*t); } /* smoothstep */
-function ramp(p,a,b){ if (b <= a) return p >= b ? 1 : 0; return smooth(clamp((p-a)/(b-a),0,1)); }
-
-var progress = 0;   /* 0..1 down the page */
-var seekTo = 0;     /* target animation phase */
-var seekAt = 0;     /* actual, eased phase (the scrub) */
-var ready = false;
-
-function readScroll(){
-  var max = document.documentElement.scrollHeight - window.innerHeight;
-  progress = max > 0 ? clamp(window.pageYOffset / max, 0, 1) : 0;
-  seekTo = progress;
+var els = [].slice.call(document.querySelectorAll(".rv"));
+if (reduced || !("IntersectionObserver" in window)) {
+  els.forEach(function(el){ el.classList.add("in"); });
+  return;
 }
-
-function paint(){
-  meter.style.transform = "scaleX(" + progress + ")";
-  for (var i = 0; i < panels.length; i++){
-    var c = CUES[i];
-    var enter = ramp(progress, c[0], c[1]);
-    var leave = ramp(progress, c[2], c[3]);
-    var o = enter * (1 - leave);
-    var y = (1 - enter) * DRIFT - leave * DRIFT;
-    var el = panels[i];
-    el.style.opacity = o;
-    el.style.transform = "translate3d(0," + y + "px,0)";
-    el.style.pointerEvents = o > 0.6 ? "auto" : "none";
-  }
-}
-
-/* ============ canvas scene (replaces the mp4) ============ */
-var DPR = Math.min(window.devicePixelRatio || 1, 2);
-var W = 0, H = 0;
-
-function resize(){
-  W = window.innerWidth; H = window.innerHeight;
-  scene.width = Math.round(W * DPR);
-  scene.height = Math.round(H * DPR);
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-}
-
-/* dot grid base layer */
-function drawGrid(){
-  ctx.fillStyle = "#0A0A0A";
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = "rgba(250,250,250,.05)";
-  var pitch = 48;
-  for (var x = pitch/2; x < W; x += pitch){
-    for (var y = pitch/2; y < H; y += pitch){
-      ctx.fillRect(x, y, 1, 1);
-    }
-  }
-}
-
-/* six floating screenshot cards at three parallax depths; phase 0..1 driven by scroll */
-var CARDS = [
-  {d:.35, x:.16, y:.30, w:.145, h:.24, r:-7},
-  {d:.60, x:.86, y:.24, w:.16,  h:.26, r: 6},
-  {d:.45, x:.80, y:.74, w:.13,  h:.21, r:-4},
-  {d:.70, x:.24, y:.72, w:.15,  h:.24, r: 8},
-  {d:.55, x:.55, y:.14, w:.12,  h:.19, r: 3},
-  {d:.50, x:.44, y:.86, w:.14,  h:.22, r:-9}
-];
-
-function roundRect(x,y,w,h,r){
-  ctx.beginPath();
-  ctx.moveTo(x+r,y);
-  ctx.arcTo(x+w,y,x+w,y+h,r);
-  ctx.arcTo(x+w,y+h,x,y+h,r);
-  ctx.arcTo(x,y+h,x,y,r);
-  ctx.arcTo(x,y,x+w,y,r);
-  ctx.closePath();
-}
-
-function drawCard(px, py, pw, ph, rot, alpha){
-  ctx.save();
-  ctx.translate(px + pw/2, py + ph/2);
-  ctx.rotate(rot * Math.PI/180);
-  ctx.globalAlpha = alpha;
-  /* card body */
-  ctx.fillStyle = "#0F0F0F";
-  roundRect(-pw/2, -ph/2, pw, ph, 10); ctx.fill();
-  ctx.strokeStyle = "#1F1F1F"; ctx.lineWidth = 1;
-  roundRect(-pw/2, -ph/2, pw, ph, 10); ctx.stroke();
-  /* skeleton UI bars — screenshot-ish */
-  ctx.fillStyle = "rgba(250,250,250,.10)";
-  ctx.fillRect(-pw/2 + pw*.12, -ph/2 + ph*.10, pw*.4, ph*.045);
-  ctx.fillRect(-pw/2 + pw*.12, -ph/2 + ph*.20, pw*.76, ph*.035);
-  ctx.fillRect(-pw/2 + pw*.12, -ph/2 + ph*.28, pw*.62, ph*.035);
-  ctx.fillRect(-pw/2 + pw*.12, -ph/2 + ph*.36, pw*.7,  ph*.035);
-  /* action strip at bottom — hints at the popup buttons */
-  ctx.fillStyle = "rgba(250,250,250,.16)";
-  ctx.fillRect(-pw/2 + pw*.12, ph/2 - ph*.16, pw*.24, ph*.06);
-  ctx.fillStyle = "rgba(239,68,68,.28)";
-  ctx.fillRect(pw/2 - pw*.36, ph/2 - ph*.16, pw*.24, ph*.06);
-  ctx.restore();
-}
-
-function drawCards(ph){
-  var t = ph;
-  for (var i = 0; i < CARDS.length; i++){
-    var c = CARDS[i];
-    /* each card drifts on its depth with the eased phase; deeper = slower */
-    var drift = (t - .5) * (140 * c.d);
-    var px = c.x * W - (c.w * W)/2 + drift * .3;
-    var py = c.y * H - (c.h * H)/2 - drift;
-    var alpha = .35 + .3 * Math.sin((t * 1.6 + i * 1.1) % (Math.PI*2)) * .5 + .15;
-    alpha = clamp(alpha, .18, .7);
-    drawCard(px, py, c.w * W, c.h * H, c.r + (t - .5) * 6, alpha * (1 - c.d * .35));
-  }
-}
-
-/* center phone silhouette — assembles mid-scroll, runs the delete motif late */
-function drawPhone(ph){
-  var assemble = ramp(ph, .22, .40);      /* phone fades in with panel 2 */
-  var delMotif = ramp(ph, .72, .88);      /* delete flash with panel 3 */
-  if (assemble <= 0) return;
-
-  var pw = Math.min(W * .26, 240), phh = pw * 2.05;
-  var cx = W/2, cy = H/2 + Math.sin(ph * Math.PI * 2) * 6;
-  ctx.save();
-  ctx.globalAlpha = assemble * .92;
-
-  /* body */
-  ctx.fillStyle = "#101010";
-  roundRect(cx - pw/2, cy - phh/2, pw, phh, 26); ctx.fill();
-  ctx.strokeStyle = "rgba(250,250,250,.18)"; ctx.lineWidth = 1.5;
-  roundRect(cx - pw/2, cy - phh/2, pw, phh, 26); ctx.stroke();
-
-  /* screen inset */
-  var sx = cx - pw/2 + pw*.06, sy = cy - phh/2 + phh*.045;
-  var sw = pw*.88, sh = phh*.88;
-  ctx.fillStyle = "#050505";
-  roundRect(sx, sy, sw, sh, 14); ctx.fill();
-
-  /* a screenshot slides INTO the phone during the mid-phase */
-  var slideIn = ramp(ph, .30, .48);
-  var cardX = sx + sw*.08 + (1 - slideIn) * sw*.9;
-  var cardY = sy + sh*.10, cardW = sw*.84, cardH = sh*.52;
-  ctx.save();
-  ctx.globalAlpha = assemble * clamp(slideIn + .25, 0, 1);
-  ctx.fillStyle = "#141414";
-  roundRect(cardX, cardY, cardW, cardH, 10); ctx.fill();
-  ctx.strokeStyle = "#242424"; ctx.lineWidth = 1;
-  roundRect(cardX, cardY, cardW, cardH, 10); ctx.stroke();
-  ctx.fillStyle = "rgba(250,250,250,.14)";
-  ctx.fillRect(cardX + cardW*.1, cardY + cardH*.08, cardW*.5, cardH*.05);
-  ctx.fillStyle = "rgba(250,250,250,.09)";
-  for (var b = 0; b < 3; b++){
-    ctx.fillRect(cardX + cardW*.1, cardY + cardH*.22 + b * cardH*.12, cardW*(.78 - b*.12), cardH*.045);
-  }
-  ctx.restore();
-
-  /* popup button strip inside the screen — the four actions */
-  var strip = ramp(ph, .42, .52);
-  if (strip > 0){
-    ctx.save();
-    ctx.globalAlpha = assemble * strip * .9;
-    var by = cardY + cardH + sh*.06;
-    ctx.fillStyle = "rgba(250,250,250,.92)";
-    roundRect(sx + sw*.08, by, sw*.24, sh*.075, 8); ctx.fill();
-    ctx.strokeStyle = "rgba(239,68,68,.85)"; ctx.lineWidth = 1.5;
-    roundRect(sx + sw*.70, by, sw*.22, sh*.075, 8); ctx.stroke();
-    ctx.fillStyle = "rgba(250,250,250,.14)";
-    roundRect(sx + sw*.38, by, sw*.24, sh*.075, 8); ctx.fill();
-    ctx.restore();
-  }
-
-  /* delete motif: the stored card flashes coral and dissolves — for panel 3 */
-  if (delMotif > 0){
-    ctx.save();
-    var flash = Math.sin(delMotif * Math.PI); /* 0→1→0 */
-    ctx.globalAlpha = flash * .85;
-    ctx.fillStyle = "rgba(239,68,68," + (flash * .5) + ")";
-    roundRect(cardX - 4, cardY - 4, cardW + 8, cardH + 8, 12); ctx.fill();
-    /* dissolving bars */
-    for (var d = 0; d < 5; d++){
-      var off = (1 - delMotif) * sh * .32;
-      ctx.fillStyle = "rgba(239,68,68," + (flash * .4) + ")";
-      ctx.fillRect(cardX + cardW*.1 + d * cardW*.16, cardY + cardH*.3 + off, cardW*.1, cardH*.5 * delMotif);
-    }
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
-
-function drawScene(){
-  drawGrid();
-  drawCards(seekAt);
-  drawPhone(seekAt);
-}
-
-/* ============ rAF loop — never cancelled ============ */
-function frame(){
-  if (ready){
-    var gap = seekTo - seekAt;
-    /* ease the phase toward the scroll target (0.115 — the scrub feel) */
-    seekAt += gap * (reduced ? 1 : 0.115);
-    if (reduced){ seekAt = seekTo; }
-    drawScene();
-  }
-  paint();
-  requestAnimationFrame(frame);
-}
-
-/* ============ boot ============ */
-function setProgress(f){
-  bootBar.style.transform = "scaleX(" + f + ")";
-  bootPct.textContent = "LOADING " + Math.round(f * 100) + "%";
-}
-var started = false;
-function start(){
-  if (started) return;
-  started = true;
-  ready = true;
-  boot.classList.add("done");
-  readScroll();
-  seekAt = reduced ? seekTo : 0;
-}
-
-/* fonts + first frame, with a hard bail so nothing strands the page */
-setProgress(.3);
-resize();
-readScroll();
-drawScene();
-
-if (document.fonts && document.fonts.ready){
-  document.fonts.ready.then(function(){
-    setProgress(.8);
-    return new Promise(function(res){ requestAnimationFrame(function(){ requestAnimationFrame(res); });
-    });
-  }).then(start, start);
-} else {
-  setTimeout(start, 400);
-}
-setTimeout(start, 1600);
-
-/* ============ wiring ============ */
-window.addEventListener("scroll", readScroll, {passive:true});
-window.addEventListener("resize", function(){ resize(); readScroll(); });
-readScroll();
-paint();
-requestAnimationFrame(frame);
-
+var io = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  });
+}, {threshold: 0.12});
+els.forEach(function(el){ io.observe(el); });
 })();
+</script>
+<script type="module">
+  import { reticle } from 'https://cdn.jsdelivr.net/npm/@reticlehq/browser@2.14.0/+esm';
+  reticle.connect({ projectId: 'shots-7c7c5222', token: 'd71fb9a4482a38744aafaff3950c254ce0c7d3c01a65c291' });
 </script>
 </body>
 </html>

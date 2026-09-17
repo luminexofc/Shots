@@ -7,7 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.shots.data.PreferencesManager
 import com.shots.ui.settings.SettingsScreen
-import com.shots.ui.theme.ShotsTheme
+import com.shots.ui.theme.ShotsKomoTheme
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,7 +16,7 @@ class SettingsActivity : ComponentActivity() {
         (application as ShotsApp).trackScreenView("Settings")
         setContent {
             val darkMode by prefs.darkMode.collectAsState(initial = 0)
-            ShotsTheme(darkMode = darkMode) {
+            ShotsKomoTheme(darkMode = darkMode) {
                 SettingsScreen(onBack = { finish() })
             }
         }

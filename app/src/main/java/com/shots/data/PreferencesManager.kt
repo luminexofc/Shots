@@ -20,6 +20,7 @@ class PreferencesManager(private val context: Context) {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val DARK_MODE = intPreferencesKey("dark_mode") // 0=system, 1=dark, 2=light
         val SHOW_EDIT_BUTTON = booleanPreferencesKey("show_edit_button")
+        val ACCENT = intPreferencesKey("accent")
     }
 
     val timerMinutes: Flow<Int> = context.dataStore.data.map { it[Keys.TIMER_MINUTES] ?: 5 }
@@ -27,6 +28,7 @@ class PreferencesManager(private val context: Context) {
     val onboardingDone: Flow<Boolean> = context.dataStore.data.map { it[Keys.ONBOARDING_DONE] ?: false }
     val darkMode: Flow<Int> = context.dataStore.data.map { it[Keys.DARK_MODE] ?: 0 }
     val showEditButton: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_EDIT_BUTTON] ?: false }
+    val accent: Flow<Int> = context.dataStore.data.map { it[Keys.ACCENT] ?: 0 }
 
     suspend fun setTimerMinutes(minutes: Int) {
         context.dataStore.edit { it[Keys.TIMER_MINUTES] = minutes }
@@ -46,5 +48,9 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setDarkMode(mode: Int) {
         context.dataStore.edit { it[Keys.DARK_MODE] = mode }
+    }
+
+    suspend fun setAccent(index: Int) {
+        context.dataStore.edit { it[Keys.ACCENT] = index }
     }
 }
