@@ -138,6 +138,7 @@ footer{border-top:1px solid var(--border);margin-top:clamp(20px,4vh,40px);}
     <nav class="nav" aria-label="Page">
       <a href="#gestures">Gestures</a>
       <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
       <a href="#support">Support</a>
       <a class="pill" href="Shots-v1.0.2.apk" download>Download</a>
     </nav>
@@ -168,7 +169,7 @@ footer{border-top:1px solid var(--border);margin-top:clamp(20px,4vh,40px);}
     <p class="lede">No menus to dig through. The screenshot appears, your thumb decides, the gallery obeys.</p>
     <div class="grid4">
       <div class="card"><div class="ic" aria-hidden="true">&rarr;</div><h3>Swipe right &mdash; Keep</h3><p>File stays, timers cancelled, popup gone. <b>Green</b> wash confirms it.</p></div>
-      <div class="card"><div class="ic" aria-hidden="true">&larr;</div><h3>Swipe left &mdash; Delete</h3><p>Moves to a 5-second <b>Undo</b> window, then verified deletion. Nothing silent.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&larr;</div><h3>Swipe left &mdash; Delete</h3><p><b>Undo</b> stays available while the popup is on screen, then verified deletion. Nothing silent.</p></div>
       <div class="card"><div class="ic" aria-hidden="true">&uarr;</div><h3>Swipe up &mdash; Timer</h3><p>Preset chips and a slider, 5 minutes to 24 hours. Fires <b>exact</b>, even in Doze.</p></div>
       <div class="card"><div class="ic" aria-hidden="true">&darr;</div><h3>Pull down &mdash; Snooze</h3><p>Not now, later. A reminder returns instead of a deletion.</p></div>
     </div>
@@ -183,7 +184,18 @@ footer{border-top:1px solid var(--border);margin-top:clamp(20px,4vh,40px);}
       <div class="card"><div class="ic" aria-hidden="true">&#10003;</div><h3>Verified deletion</h3><p>Every delete is confirmed at file level before it's marked done. No ghosts.</p></div>
       <div class="card"><div class="ic" aria-hidden="true">&#9776;</div><h3>History + filters</h3><p>Every shot listed with status, countdowns, and one-tap cancel or extend.</p></div>
       <div class="card"><div class="ic" aria-hidden="true">&#9681;</div><h3>Themes + accents</h3><p>System, dark, or light — with five accent colors across popup, tabs, and nav.</p></div>
-      <div class="card"><div class="ic" aria-hidden="true">&#128274;</div><h3>Private by design</h3><p>No accounts, no analytics on your shots, everything on-device.</p></div>
+      <div class="card"><div class="ic" aria-hidden="true">&#128274;</div><h3>Private by design</h3><p>No accounts, no ads. Your screenshots stay on-device. Anonymous usage events via Mixpanel help improve the app, <a href="#privacy" style="color:var(--mint);">full details below</a>.</p></div>
+    </div>
+  </section>
+
+  <!-- privacy -->
+  <section class="block rv" id="privacy">
+    <h2>Privacy and tracking, in plain terms.</h2>
+    <p class="lede">Your screenshots never leave your phone. Shots has no accounts and no ads. To understand which features get used, the app sends anonymous usage events to Mixpanel, listed in full here.</p>
+    <div class="grid3">
+      <div class="card"><h3>Events sent to Mixpanel</h3><p>App Opened. Screenshot Detected (event only, no image). Screenshot Action, with the action taken and its source. Onboarding Completed. Screen Viewed, with the screen name. Setting Changed, with the setting name and its new value.</p></div>
+      <div class="card"><h3>Sent with every event</h3><p>Platform (Android) and app version. Mixpanel's automatic collection is on, so its SDK may also record standard device and OS information. No name, email, or account is attached, because Shots has no accounts.</p></div>
+      <div class="card"><h3>Never sent</h3><p>Your screenshot images, gallery files, and file paths are never uploaded. Detection, timers, and deletion all run on your device.</p></div>
     </div>
   </section>
 
